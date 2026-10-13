@@ -236,7 +236,7 @@ implemented, tested and demonstrated independently.
 - [X] T077 Run the full [quickstart.md](quickstart.md) §2–§7 by hand, including the Windows Terminal, kitty/Ghostty and 256-colour checks (research R4) and the SC-007 CPU check; record the results in `docs/validation/quickstart-run-2026-10.md` and fix every failure in-change (Principle VI) (#77)
 - [X] T078 [P] Record the launch GIF of `/watchtower demo` in both themes to `docs/assets/` (the asset the README references) (#78)
 - [X] T079 Run `npx @claude-flow/cli@latest security scan` (global CLAUDE.md rule after security work) and `/code-review` on the full diff; fix findings (#79)
-- [ ] T080 **Owner approval required (Principle X / outward-facing)**: confirm with the owner before making `Fortitude-Group/omnis-watchtower` public or announcing the marketplace listing. Do not perform either without an explicit yes (#80)
+- [X] T080 **Owner approval required (Principle X / outward-facing)**: confirm with the owner before making `Fortitude-Group/omnis-watchtower` public or announcing the marketplace listing. Do not perform either without an explicit yes (#80)
 
 ---
 

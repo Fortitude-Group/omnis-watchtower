@@ -1,6 +1,9 @@
 {
   "name": "omnis-watchtower",
-  "owner": { "name": "Fortitude Omnis Group" },
+  "description": "Omnis Watchtower by Fortitude Omnis Group: mission control for your coding agents, with a supply-chain tripwire for npm and PyPI.",
+  "owner": {
+    "name": "Fortitude Omnis Group"
+  },
   "plugins": [
     {
       "name": "omnis-watchtower",
