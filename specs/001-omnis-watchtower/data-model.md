@@ -70,7 +70,8 @@ PackageCheck {
   tier: Tier
   signals: Signal[]
   alternative?: string    // FR-010, e.g. the imitated popular name
-  decidedBy: 'fast-score' | 'sentinel' | 'override' | 'cache' | 'warn-only'
+  pinnedTo?: string       // FR-035 cooldown pin: the version the install was rewritten to
+  decidedBy: 'fast-score' | 'sentinel' | 'override' | 'cache' | 'warn-only' | 'cooldown'
   decidedAt: number
   expiresAt: number       // cache horizon (FR-011): verdicts 24 h
 }
@@ -83,6 +84,9 @@ Tier function (pure, in `core/`), applied in order:
 4. Any **hard** signal present (`exists` absent, `malware`, `dependencyConfusion`) → `refuse`.
 5. `typosquat` present AND (`lowAdoption` present or unknown) → `refuse`.
 6. `malware` unknown → `hold` (FR-009: cannot pass).
+6a. Cooldown pin (FR-035): the package is on the popular list, no version was requested, the
+    only present strong signal is `versionAge`, no weak signals are present, and a release at
+    least 72 h old exists → `pass` with `pinnedTo` that release (`decidedBy: 'cooldown'`).
 7. Any **strong** signal present, or two or more **weak** signals present → `hold`.
 8. Otherwise → `pass`.
 9. Warn-only mode maps `refuse`/`hold` to an allowed call but keeps the tier for display and

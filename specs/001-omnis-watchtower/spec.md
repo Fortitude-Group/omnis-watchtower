@@ -68,6 +68,13 @@ refused with a reason; a legitimate popular package installs normally.
 8. **Given** an agent runs a command that executes a package directly without installing it
    (e.g. a run-once package runner), **When** the command is attempted, **Then** the package is
    checked exactly as an install would be.
+9. **Given** an agent installs a popular package without naming a version, and its latest
+   release is under 72 hours old with no other warning signs, **When** the install is attempted,
+   **Then** it proceeds pinned to the newest release that is at least 72 hours old, and the agent
+   is told which version it got and why (cooldown pin; owner decision 2026-10-13).
+10. **Given** an agent explicitly requests a popular package's release that is under 72 hours
+   old, **When** the install is attempted, **Then** it is held for investigation as in User
+   Story 2.
 
 ---
 
@@ -257,6 +264,11 @@ an override.
 
 **Holding and investigation**
 
+- **FR-035**: For a package on the bundled popular list, when the only reason to hold is that
+  the latest release is under 72 hours old and no version was requested, Watchtower MUST rewrite
+  the install to the newest release at least 72 hours old instead of holding it, and MUST tell
+  the agent the pinned version and the reason. If no such release exists, or the version was
+  requested explicitly, the package is held as normal.
 - **FR-013**: A held install MUST be refused with an explanation telling the agent the package is
   under investigation and to retry the same command later.
 - **FR-014**: Holding a package MUST dispatch an investigator agent that only Watchtower can

@@ -58,6 +58,12 @@ Re-investigate: /watchtower recheck <ecosystem>:<name>   Override (human only): 
 
 A command touching several packages lists one block per package, refused and held first.
 
+## Cooldown pin (FR-035)
+
+The command runs rewritten. The agent sees this in the tool result's context:
+
+`WATCHTOWER PINNED <ecosystem>:<name> → <pinned version> (latest <fresh version> is under 72 hours old; cooldown against hijacked releases)`
+
 ## Next-turn context on verdict (FR-018)
 
 `WATCHTOWER VERDICT <ecosystem>:<name> → <allowed|refused>: <top evidence line>`
