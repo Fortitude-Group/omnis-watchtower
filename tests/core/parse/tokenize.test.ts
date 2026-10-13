@@ -66,10 +66,22 @@ describe('tokenize', () => {
     expect(tokenize('npm i $(cat list)')[0]!.unsafe).toBe('command substitution')
     expect(tokenize('npm i `cat list`')[0]!.unsafe).toBe('command substitution')
     expect(tokenize('npm i "$(cat list)"')[0]!.unsafe).toBe('command substitution')
-    expect(tokenize('(cd x && npm i y)')[0]!.unsafe).toBe('subshell')
     expect(tokenize('pip install -r <(curl x)')[0]!.unsafe).toBe('process substitution')
     expect(tokenize("npm i 'unterminated")[0]!.unsafe).toBe('unterminated quote')
     expect(tokenize('npm i a && echo ok')[1]!.unsafe).toBeUndefined()
+  })
+
+  test('substitutions stay one opaque word; grouping parens split segments', () => {
+    expect(words('npm i $(cat "a)b" list) x')).toEqual([[['npm', 'i', '$(cat "a)b" list)', 'x']]])
+    expect(words('npm i `cat list` x')).toEqual([[['npm', 'i', '`cat list`', 'x']]])
+    expect(words('bash <(curl -s u)')).toEqual([[['bash', '<(curl -s u)']]])
+    expect(words('(cd x && npm i y)')).toEqual([[['cd', 'x']], [['npm', 'i', 'y']]])
+    expect(tokenize('(cd x && npm i y)').some((s) => s.unsafe)).toBe(false)
+  })
+
+  test('heredoc bodies are attached to their segment', () => {
+    const [seg] = tokenize("bash <<'EOF'\nnpm i a\npip install b\nEOF\n")
+    expect(seg!.heredocs).toEqual(['npm i a\npip install b'])
   })
 
   test('heredoc bodies are skipped', () => {
@@ -107,6 +119,12 @@ describe('unwrap', () => {
     expect(run('/usr/local/bin/pip3 install x').words[0]).toBe('pip3')
     expect(run(`'C:\\nodejs\\NPM.cmd' i x`).words[0]).toBe('npm')
     expect(run('.venv/bin/python -m pip install x').words[0]).toBe('python')
+  })
+
+  test('opening reserved words are stripped unless quoted', () => {
+    expect(run('then npm i x').words).toEqual(['npm', 'i', 'x'])
+    expect(run('! { npm i x').words).toEqual(['npm', 'i', 'x'])
+    expect(run(`'then' x`).words).toEqual(['then', 'x'])
   })
 
   test('a bare assignment leaves no command', () => {

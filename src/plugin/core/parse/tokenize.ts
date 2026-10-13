@@ -6,8 +6,11 @@
  */
 export type Word = { text: string; dynamic: boolean; start: number; end: number }
 export type Command = { words: Word[]; raw: string }
-/** A chain element (split on `&&`, `||`, `;`, `&`, newline): a pipeline of one or more commands. */
-export type Segment = { raw: string; commands: Command[]; unsafe?: string }
+/**
+ * A chain element (split on `&&`, `||`, `;`, `&`, newline, and the grouping parens of `( … )` and
+ * `case` patterns): a pipeline of one or more commands. `heredocs` holds the bodies fed to it.
+ */
+export type Segment = { raw: string; commands: Command[]; unsafe?: string; heredocs?: string[] }
 export type Invocation = { words: Word[]; env: Record<string, string> }
 
 const NAME_START = /[A-Za-z_]/
@@ -17,7 +20,7 @@ const SPECIAL_PARAM = /[0-9?@*#$!-]/
 export const tokenize = (input: string): Segment[] => {
   const src = input
   const segments: Segment[] = []
-  const heredocs: string[] = []
+  const heredocs: { delim: string; segment: number }[] = []
   let commands: Command[] = []
   let words: Word[] = []
   let text = ''
@@ -40,7 +43,7 @@ export const tokenize = (input: string): Segment[] => {
   }
   const endWord = () => {
     if (inWord) {
-      if (redirect === 'heredoc') heredocs.push(text)
+      if (redirect === 'heredoc') heredocs.push({ delim: text, segment: segments.length })
       else if (!redirect) words.push({ text, dynamic, start: wordStart, end: i })
       redirect = undefined
     }
@@ -67,15 +70,49 @@ export const tokenize = (input: string): Segment[] => {
   const skipHeredocs = (from: number): number => {
     let p = from
     while (heredocs.length > 0) {
-      const delim = heredocs.shift()!
+      const { delim, segment } = heredocs.shift()!
+      const body: string[] = []
       while (p < src.length) {
         const e = src.indexOf('\n', p)
         const line = src.slice(p, e < 0 ? src.length : e)
         p = e < 0 ? src.length : e + 1
         if (line.trim() === delim) break
+        body.push(line)
       }
+      const owner = segments[segment]
+      if (owner) (owner.heredocs ??= []).push(body.join('\n'))
     }
     return p
+  }
+  // Index just past the `)` matching the `(` at `from`, stepping over quotes; end of input if unmatched.
+  const closeParen = (from: number): number => {
+    let depth = 0
+    let p = from
+    while (p < src.length) {
+      const ch = src[p]!
+      if (ch === '\\') p += 2
+      else if (ch === "'") {
+        const e = src.indexOf("'", p + 1)
+        p = e < 0 ? src.length : e + 1
+      } else if (ch === '"') {
+        p++
+        while (p < src.length && src[p] !== '"') p += src[p] === '\\' ? 2 : 1
+        p++
+      } else {
+        if (ch === '(') depth++
+        else if (ch === ')' && --depth === 0) return p + 1
+        p++
+      }
+    }
+    return src.length
+  }
+  // Takes `$( … )`, `<( … )` or `` ` … ` `` whole into the current word, so its parens split nothing.
+  const opaque = (end: number, reason: string) => {
+    flag(reason)
+    begin()
+    dynamic = true
+    text += src.slice(i, end)
+    i = end
   }
 
   while (i < src.length) {
@@ -142,18 +179,20 @@ export const tokenize = (input: string): Segment[] => {
     }
     if (c === '$') {
       const e = n ?? ''
-      if (e === '(') flag('command substitution')
-      else if (e === '{' || e === "'" || NAME_START.test(e) || SPECIAL_PARAM.test(e)) dynamic = true
+      if (e === '(') {
+        opaque(closeParen(i + 1), 'command substitution')
+        continue
+      }
+      if (e === '{' || e === "'" || NAME_START.test(e) || SPECIAL_PARAM.test(e)) dynamic = true
       begin()
       text += c
       i++
       continue
     }
     if (c === '`') {
-      flag('command substitution')
-      begin()
-      text += c
-      i++
+      let e = i + 1
+      while (e < src.length && src[e] !== '`') e += src[e] === '\\' ? 2 : 1
+      opaque(Math.min(e + 1, src.length), 'command substitution')
       continue
     }
     if (c === ' ' || c === '\t') {
@@ -205,8 +244,7 @@ export const tokenize = (input: string): Segment[] => {
       }
       endWord()
       if (n === '(') {
-        flag('process substitution')
-        i += 2
+        opaque(closeParen(i + 1), 'process substitution')
         continue
       }
       if (c === '<' && n === '<') {
@@ -234,8 +272,7 @@ export const tokenize = (input: string): Segment[] => {
       continue
     }
     if (c === '(' || c === ')') {
-      flag('subshell')
-      endWord()
+      endSegment(i, i + 1)
       i++
       continue
     }
@@ -253,6 +290,10 @@ export const tokenize = (input: string): Segment[] => {
 }
 
 const ENV_ASSIGN = /^([A-Za-z_][A-Za-z0-9_]*)=([\s\S]*)$/
+
+// Unquoted reserved words that may open a command (`then npm i x`, `{ npm i x; }`, `! npm i x`).
+// Closers (`fi`, `done`, `esac`, `}`) end up as a lone head word that nothing recognises.
+const RESERVED = new Set(['if', 'then', 'else', 'elif', 'do', 'while', 'until', '{', '!'])
 
 // Wrapper commands and the flags of theirs that take a value.
 const WRAPPERS: Record<string, ReadonlySet<string>> = {
@@ -295,6 +336,10 @@ export const unwrap = (words: Word[]): Invocation => {
     const m = ENV_ASSIGN.exec(w.text)
     if (m) {
       env[m[1]!] = m[2]!
+      i++
+      continue
+    }
+    if (RESERVED.has(w.text) && w.end - w.start === w.text.length) {
       i++
       continue
     }

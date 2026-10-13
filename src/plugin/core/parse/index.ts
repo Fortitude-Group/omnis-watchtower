@@ -80,6 +80,12 @@ const feedsShell = (lexical: string | undefined, invocations: Invocation[]): boo
     return shell && lexical === 'command substitution' && args.some((w) => STRING_FLAGS.test(w.text))
   })
 
+const SH_LIKE = /^(?:sh|bash|zsh|dash|ksh|ash)$/
+
+/** The interpreter a heredoc segment feeds (`bash <<EOF`, `cat <<EOF | sh`, `python - <<EOF`), if any. */
+const fedInterpreter = (invocations: Invocation[]): string | undefined =>
+  invocations.map((inv) => inv.words[0]?.text ?? '').find((head, k) => SHELLS.test(head) && readsStdin(invocations[k]!.words.slice(1)))
+
 type Cwd = string | undefined
 
 const changeDir = (cwd: Cwd, target: Word | undefined): Cwd => {
@@ -134,27 +140,40 @@ export const parseCommand = (command: string, agentId: string, at: number): Inst
     if (Object.keys(f.spans).length > 0) request.spans = f.spans
     requests.push(request)
   }
-  let cwd: Cwd = ''
-  for (const segment of tokenize(command)) {
-    const invocations = segment.commands.map((c) => unwrap(c.words))
-    const unsafe = segment.unsafe ?? semanticUnsafe(invocations)
-    if (unsafe) {
-      const tool = detectTool(segment.raw) ?? (feedsShell(segment.unsafe, invocations) ? 'shell' : undefined)
-      if (tool) push({ tool, packages: [], unchecked: [segment.raw], source: 'explicit', files: [], indexUrls: [], dir: '', spans: {} })
-      continue
-    }
-    for (const [k, inv] of invocations.entries()) {
-      const head = inv.words[0]?.text
-      if (head === 'cd' || head === 'pushd') {
-        cwd = changeDir(cwd, inv.words[1])
+  const unchecked = (tool: InstallTool, raw: string) =>
+    push({ tool, packages: [], unchecked: [raw], source: 'explicit', files: [], indexUrls: [], dir: '', spans: {} })
+  // `nested`: text from a heredoc body, whose tokens are not in `command` and so get no spans.
+  const walk = (text: string, start: Cwd, nested: boolean) => {
+    let cwd = start
+    for (const segment of tokenize(text)) {
+      const invocations = segment.commands.map((c) => unwrap(c.words))
+      const interpreter = segment.heredocs ? fedInterpreter(invocations) : undefined
+      if (interpreter !== undefined) {
+        unchecked('shell', segment.raw)
+        if (SH_LIKE.test(interpreter)) for (const body of segment.heredocs!) walk(body, cwd, true)
         continue
       }
-      const f = parseNpm(inv.words) ?? parsePypi(inv.words)
-      if (!f) continue
-      envIndexUrls(f, inv.env)
-      push(resolveFiles(f, cwd, segment.commands[k]!.raw))
+      const unsafe = segment.unsafe ?? semanticUnsafe(invocations)
+      if (unsafe) {
+        const tool = detectTool(segment.raw) ?? (feedsShell(segment.unsafe, invocations) ? 'shell' : undefined)
+        if (tool) unchecked(tool, segment.raw)
+        continue
+      }
+      for (const [k, inv] of invocations.entries()) {
+        const head = inv.words[0]?.text
+        if (head === 'cd' || head === 'pushd') {
+          cwd = changeDir(cwd, inv.words[1])
+          continue
+        }
+        const f = parseNpm(inv.words) ?? parsePypi(inv.words)
+        if (!f) continue
+        envIndexUrls(f, inv.env)
+        if (nested) f.spans = {}
+        push(resolveFiles(f, cwd, segment.commands[k]!.raw))
+      }
     }
   }
+  walk(command, '', false)
   return requests
 }
 
