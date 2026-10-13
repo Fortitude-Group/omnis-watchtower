@@ -4,6 +4,7 @@ import { cacheGet, cacheSet, TTL } from './cache'
 import type { PartialFacts } from './facts'
 import { fetchJson } from './http'
 import type { SourceIo } from './ports'
+import { isRecord } from './json'
 
 export { INSTALL_SCRIPTS }
 
@@ -17,9 +18,6 @@ const EXACT_SEMVER = /^v?\d+\.\d+\.\d+(?:[-+][0-9A-Za-z.+-]*)?$/
 
 /** True for an exact version; a dist-tag, range or no version follows a moving pointer. */
 export const isExactNpmVersion = (version: string | undefined): boolean => !!version && EXACT_SEMVER.test(version)
-
-const isRecord = (v: unknown): v is Record<string, unknown> =>
-  typeof v === 'object' && v !== null && !Array.isArray(v)
 
 // The registry and deps.dev take a scoped name with its slash encoded: @scope%2Fname
 export const encodeNpmName = (name: string) => name.replace('/', '%2F')

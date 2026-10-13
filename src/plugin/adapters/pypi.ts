@@ -4,6 +4,7 @@ import type { PartialFacts } from './facts'
 import { fetchJson } from './http'
 import { LATEST_TTL_MS } from './npm'
 import type { SourceIo } from './ports'
+import { isRecord } from './json'
 
 export { LATEST_TTL_MS }
 
@@ -13,9 +14,6 @@ const NS = 'pypi'
 const EXACT_PEP440 = /^(?:\d+!)?\d+(?:\.\d+)*(?:[-_.]?(?:a|b|c|rc|alpha|beta|pre|preview|post|rev|r|dev)[-_.]?\d*)*(?:\+[0-9A-Za-z.]+)?$/i
 
 export const isExactPypiVersion = (version: string): boolean => EXACT_PEP440.test(version.trim())
-
-const isRecord = (v: unknown): v is Record<string, unknown> =>
-  typeof v === 'object' && v !== null && !Array.isArray(v)
 
 // The project endpoint, not /<name>/<version>/json, which carries no release list
 export const pypiUrl = (name: string) => `https://pypi.org/pypi/${encodeURIComponent(name)}/json`

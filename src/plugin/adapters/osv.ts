@@ -2,16 +2,11 @@ import type { Fact, OsvEntry, PackageRef } from '../core/model'
 import { cacheGet, cacheSet, TTL } from './cache'
 import { fetchJson } from './http'
 import type { SourceIo } from './ports'
+import { isRecord, strings } from './json'
 
 const NS = 'osv'
 
 export const OSV_URL = 'https://api.osv.dev/v1/query'
-
-const isRecord = (v: unknown): v is Record<string, unknown> =>
-  typeof v === 'object' && v !== null && !Array.isArray(v)
-
-const strings = (v: unknown): string[] =>
-  Array.isArray(v) ? v.filter((s): s is string => typeof s === 'string') : []
 
 // A range (^1.2, >=2) would make OSV refuse the query, so only an exact version is sent
 const EXACT = /^v?\d[0-9A-Za-z.+_!-]*$/

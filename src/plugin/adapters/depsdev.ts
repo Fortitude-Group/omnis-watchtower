@@ -5,11 +5,9 @@ import type { PartialFacts } from './facts'
 import { fetchJson } from './http'
 import { encodeNpmName, LATEST_TTL_MS } from './npm'
 import type { SourceIo } from './ports'
+import { isRecord } from './json'
 
 const NS = 'depsdev'
-
-const isRecord = (v: unknown): v is Record<string, unknown> =>
-  typeof v === 'object' && v !== null && !Array.isArray(v)
 
 export const depsDevUrl = (name: string) =>
   `https://api.deps.dev/v3/systems/npm/packages/${encodeNpmName(name)}`

@@ -3,11 +3,9 @@ import { normalisePypi } from '../core/model'
 import { cacheGet, cacheSet, TTL } from './cache'
 import { fetchJson } from './http'
 import type { SourceIo } from './ports'
+import { isRecord } from './json'
 
 export const NPM_BULK_MAX = 128
-
-const isRecord = (v: unknown): v is Record<string, unknown> =>
-  typeof v === 'object' && v !== null && !Array.isArray(v)
 
 // The downloads API takes the raw name, scoped or not
 export const npmDownloadsUrl = (names: string[]) =>
