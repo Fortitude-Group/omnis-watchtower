@@ -2,10 +2,20 @@
 // snapshot and return text plus actions. This file is the only one that turns actions into engine
 // calls, because `$` may not cross an import (see context.ts).
 import { atom, read, update } from 'claude-code'
-import type { CommandRunInput, On } from 'claude-code'
+import type { On } from 'claude-code'
 
 import { appendEvents, type Ctx } from '../context'
 import type { Investigation, Override, SceneEvent, WatchtowerTheme } from '../../types'
+import { handlers, helpText, KNOWN, type Reply, type Snapshot } from './registry'
+// Each handler file registers its sub-command with addSubcommand when it loads
+import './open'
+import './theme'
+import './legend'
+import './status'
+import './demo'
+import './overrides'
+
+export { addSubcommand, helpText, type Action, type Handler, type Reply, type Snapshot } from './registry'
 
 const events = atom({ plugin: 'omnis-watchtower', key: 'events' } as const, [] as SceneEvent[])
 const investigations = atom({ plugin: 'omnis-watchtower', key: 'investigations' } as const, {} as Record<string, Investigation>)
@@ -13,54 +23,6 @@ const sessionOverrides = atom({ plugin: 'omnis-watchtower', key: 'sessionOverrid
 const theme = atom({ plugin: 'omnis-watchtower', key: 'theme' } as const, 'radar' as WatchtowerTheme)
 
 export const PANE_ID = 'watchtower'
-
-export type Snapshot = {
-  /** 'unclassified' when the engine stamped no origin: treated as untrusted (never 'composer'). */
-  origin: CommandRunInput['origin']['kind'] | 'unclassified'
-  now: number
-  theme: WatchtowerTheme
-  events: SceneEvent[]
-  investigations: Record<string, Investigation>
-  sessionOverrides: Record<string, Override>
-  permanentOverrides: Record<string, Override>
-  ctx: Ctx
-}
-
-export type Action =
-  | { type: 'openPane' }
-  | { type: 'setTheme'; theme: WatchtowerTheme }
-  | { type: 'putOverride'; override: Override }
-  | { type: 'removeOverride'; key: string }
-  | { type: 'requeueInvestigation'; investigation: Investigation; verdictCacheKey: string }
-  | { type: 'startDemo' }
-
-export type Reply = { text: string; actions?: Action[] }
-
-/** A sub-command handler. `args` excludes the sub-command name itself. */
-export type Handler = (args: string[], snap: Snapshot) => Reply
-
-const handlers = new Map<string, Handler>()
-
-/** Sub-command files call this at module load; '' is bare /watchtower. */
-export const addSubcommand = (name: string, handler: Handler): void => {
-  handlers.set(name, handler)
-}
-
-export const KNOWN = ['', 'theme', 'legend', 'demo', 'status', 'allow', 'block', 'overrides', 'recheck']
-
-export const helpText = (): string =>
-  [
-    'Omnis Watchtower commands:',
-    '  /watchtower                         open mission control',
-    '  /watchtower theme <radar|cracktro>  switch theme',
-    '  /watchtower legend                  explain every figure on screen',
-    '  /watchtower demo                    replay the scripted attack (offline)',
-    '  /watchtower status                  totals, investigations, overrides, faults',
-    '  /watchtower allow <eco:pkg>[@ver] [--permanent]   human only',
-    '  /watchtower block <eco:pkg> [--permanent]         human only',
-    '  /watchtower overrides [clear <eco:pkg>]',
-    '  /watchtower recheck <eco:pkg>[@ver]',
-  ].join('\n')
 
 export const splitArgs = (args: string): string[] => args.trim().split(/\s+/).filter(Boolean)
 
