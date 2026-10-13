@@ -2,7 +2,9 @@ import { describe, expect, test } from 'vitest'
 import type { PackageRef, Signal, SignalKind, SignalState } from '../../../src/plugin/core/model'
 import { alternativeFor, evidenceLines } from '../../../src/plugin/core/score/evidence'
 import { WEIGHTS } from '../../../src/plugin/core/score/signals'
-import { decide, decideCommand, isAllowed, matchesAllowlist, tierFor, VERDICT_TTL_MS } from '../../../src/plugin/core/score/tier'
+import { decide, decideCommand, isAllowed, matchesAllowlist, scorePackage, tierFor, VERDICT_TTL_MS, type Cooldown } from '../../../src/plugin/core/score/tier'
+import { buildTyposquatIndex } from '../../../src/plugin/core/score/typosquat'
+import type { PackageFacts } from '../../../src/plugin/core/model'
 
 const NOW = Date.parse('2026-10-13T00:00:00Z')
 const ref: PackageRef = { ecosystem: 'npm', name: 'pkg' }
@@ -39,6 +41,16 @@ describe('tierFor, rules in order', () => {
   test('2. private registry or allowlist → pass, ahead of hard signals', () => {
     expect(tierFor(base(s('privateRegistry', 'present'), s('exists', 'unknown')))).toBe('pass')
     expect(tierFor(base(s('exists', 'absent')), undefined, true)).toBe('pass')
+  })
+
+  test('2. a private name the public registry also serves is refused; an unanswered check holds', () => {
+    expect(tierFor(base(s('privateRegistry', 'present'), s('exists', 'unknown'), s('dependencyConfusion', 'present')))).toBe('refuse')
+    expect(tierFor(base(s('privateRegistry', 'present'), s('exists', 'unknown'), s('dependencyConfusion', 'unknown')))).toBe('hold')
+    expect(tierFor(base(s('dependencyConfusion', 'unknown')), undefined, true)).toBe('hold')
+  })
+
+  test('dependency-confusion check unknown on a public package → hold', () => {
+    expect(tierFor(base(s('dependencyConfusion', 'unknown')))).toBe('hold')
   })
 
   test('3. registry unreachable → unverified', () => {
@@ -154,5 +166,61 @@ describe('matchesAllowlist', () => {
     expect(matchesAllowlist('lodash', '')).toBe(false)
     expect(matchesAllowlist('a.b', ['a.b'])).toBe(true)
     expect(matchesAllowlist('axb', ['a.b'])).toBe(false)
+  })
+})
+
+describe('6a. cooldown pin (FR-035)', () => {
+  const fresh = (...over: Signal[]) => base(s('versionAge', 'present'), ...over)
+  const cd = (over: Partial<Cooldown> = {}): Cooldown => ({ popular: true, requested: false, latest: '2.1.0', pin: '2.0.3', ...over })
+
+  test('popular, unrequested, only a fresh release → pass pinned', () => {
+    const c = decide({ ref, signals: fresh(), now: NOW, cooldown: cd() })
+    expect(c).toMatchObject({ tier: 'pass', pinnedTo: '2.0.3', decidedBy: 'cooldown' })
+    expect(evidenceLines(c.signals)).toEqual(['Latest release 2.1.0 is under 72 hours old; pinned to 2.0.3'])
+    expect(isAllowed(c)).toBe(true)
+  })
+
+  test('each failed condition falls through to hold', () => {
+    expect(tierFor(fresh(), undefined, false, cd({ popular: false }))).toBe('hold')
+    expect(tierFor(fresh(), undefined, false, cd({ requested: true }))).toBe('hold')
+    expect(tierFor(fresh(), undefined, false, cd({ pin: undefined }))).toBe('hold')
+    expect(tierFor(fresh(s('packageAge', 'present')), undefined, false, cd())).toBe('hold')
+    expect(tierFor(fresh(s('typosquat', 'present', 'lodash')), undefined, false, cd())).toBe('hold')
+    expect(tierFor(fresh(s('installScripts', 'present')), undefined, false, cd())).toBe('hold')
+    expect(tierFor(fresh(s('malware', 'unknown')), undefined, false, cd())).toBe('hold')
+    expect(tierFor(fresh(), undefined, false, undefined)).toBe('hold')
+  })
+
+  test('hard and typosquat rules still come first', () => {
+    expect(tierFor(fresh(s('malware', 'present')), undefined, false, cd())).toBe('refuse')
+  })
+
+  test('without a fresh release there is nothing to pin', () => {
+    const c = decide({ ref, signals: base(), now: NOW, cooldown: cd() })
+    expect(c.pinnedTo).toBeUndefined()
+    expect(c.decidedBy).toBe('fast-score')
+  })
+
+  test('scorePackage wires facts, popularity and the request', () => {
+    const H = 3_600_000
+    const f: PackageFacts = {
+      ref: { ecosystem: 'npm', name: 'zod' },
+      exists: true,
+      resolvedVersion: '4.6.7',
+      versions: [
+        { version: '4.6.6', publishedAt: new Date(NOW - 200 * H).toISOString() },
+        { version: '4.6.7', publishedAt: new Date(NOW - 7 * H).toISOString() },
+      ],
+      installScripts: [],
+      sdistOnly: false,
+      weeklyDownloads: 1e7,
+      maintainerCount: 2,
+      repository: 'https://github.com/colinhacks/zod',
+      osv: [],
+    }
+    const idx = buildTyposquatIndex(['zod', 'react'])
+    expect(scorePackage(f, NOW, idx)).toMatchObject({ tier: 'pass', pinnedTo: '4.6.6', decidedBy: 'cooldown' })
+    expect(scorePackage({ ...f, ref: { ...f.ref, version: '4.6.7' } }, NOW, idx).tier).toBe('hold')
+    expect(scorePackage(f, NOW, buildTyposquatIndex(['react'])).tier).toBe('hold')
   })
 })

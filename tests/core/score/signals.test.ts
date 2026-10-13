@@ -67,6 +67,8 @@ describe('buildSignals', () => {
   test('dependency confusion', () => {
     expect(state({}, 'dependencyConfusion')).toBe('absent')
     expect(get(build({ shadowsPrivate: true }), 'dependencyConfusion')).toMatchObject({ state: 'present', weight: 'hard' })
+    expect(state({ shadowsPrivate: false }, 'dependencyConfusion')).toBe('absent')
+    expect(get(build({ shadowsPrivate: 'unknown' }), 'dependencyConfusion')).toMatchObject({ state: 'unknown', weight: 'hard' })
   })
 
   test('private registry is recorded when set', () => {
