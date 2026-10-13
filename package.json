@@ -12,10 +12,13 @@
     "test": "vitest run",
     "test:plugin": "claude plugin test src/plugin",
     "validate": "claude plugin validate src/plugin",
-    "check": "npm run typecheck && npm test && npm run validate && npm run test:plugin"
+    "check": "npm run typecheck && npm test && npm run validate && npm run test:plugin",
+    "build:preview": "node scripts/build-demo-preview.mjs"
   },
   "devDependencies": {
     "@types/node": "24.19.2",
+    "esbuild": "0.28.2",
+    "gifenc": "1.0.3",
     "typescript": "7.0.2",
     "vitest": "5.0.4"
   }

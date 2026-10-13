@@ -10,6 +10,10 @@ terminal.
 
 ![Watchtower's radar theme: agents orbiting the command ship, packages arriving at the tripwire ring](docs/assets/demo-radar.gif)
 
+`/watchtower demo` in the radar theme. Prefer copper bars? Here's [the cracktro theme](docs/assets/demo-cracktro.gif).
+Both are rendered frame by frame by the plugin's own renderer (`npm run build:preview`), painted the
+way a truecolour terminal paints the pane.
+
 ## What it does
 
 - **Refuses** installs that are plainly bad: names that don't exist, known malware, typosquats of
