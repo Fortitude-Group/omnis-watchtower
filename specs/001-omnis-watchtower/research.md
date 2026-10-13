@@ -96,8 +96,11 @@ Installed toolchain (verified): Claude Code **2.1.296**, Node **v24.19.0**, npm 
   when known (malware is often version-specific, e.g. hijacked releases).
 - **Verified (live)**: `crossenv` (npm) returns `GHSA-c2m4-w5hm-vqjw`, summary "crossenv is
   malware", `cwe_ids: ["CWE-506"]`, with **no** `MAL-` id. `ctx` (PyPI) returns
-  `GHSA-4g82-3jcr-q52w` "Malware in ctx". The design doc's "`MAL-` advisory" rule alone would
-  have missed both.
+  `GHSA-4g82-3jcr-q52w` "Malware in ctx" (`cwe_ids: ["CWE-912"]`) and `GHSA-67r3-h899-9w95`
+  "Embedded Malicious Code in ctx" (`cwe_ids: []`). **Neither carries CWE-506**, so `ctx` is
+  caught only by the summary rule (corrected 2026-10-13 from the recorded fixture, which an
+  earlier draft of this entry overstated). The design doc's "`MAL-` advisory" rule alone would
+  have missed both packages, which is why all three tests (id, CWE, summary) are needed.
 - **Alternatives considered**: `MAL-` only (misses GitHub-reviewed malware, as shown).
 
 ## R8. Maintainer signal (correction to the design doc)
