@@ -231,7 +231,7 @@ implemented, tested and demonstrated independently.
 
 - [ ] T073 [P] Write `README.md` at repo root (explicitly in scope: the marketplace listing needs it): what Watchtower does, install commands, Claude Code ≥ 2.1.296, privacy statement (no data leaves for Fortitude services, FR-034), zero runtime dependencies, themes, commands and config tables generated from the contract, honest limits (not a shell sandbox; npm and PyPI only). Run the `writing-no-slop` skill (product register) (#73)
 - [ ] T074 [P] Create `CHANGELOG.md` with the 0.1.0 entry (Principle II) (#74)
-- [ ] T075 Measure SC-003 live: `scripts/latency-probe.mjs` timing first-seen and cached decisions for 100 packages per ecosystem through the Node adapter; record p95 in `docs/validation/latency-2026-10.md` (#75)
+- [X] T075 Measure SC-003 live: `scripts/latency-probe.mjs` timing first-seen and cached decisions for 100 packages per ecosystem through the Node adapter; record p95 in `docs/validation/latency-2026-10.md` (#75)
 - [ ] T076 Measure SC-004 live: run 20 held packages through a real session, record time-to-verdict and the timeout rate in `docs/validation/sentinel-2026-10.md`; if under 90 % within 180 s, raise the default in `plugin.json` and research R5 in the same commit (#76)
 - [ ] T077 Run the full [quickstart.md](quickstart.md) §2–§7 by hand, including the Windows Terminal, kitty/Ghostty and 256-colour checks (research R4) and the SC-007 CPU check; record the results in `docs/validation/quickstart-run-2026-10.md` and fix every failure in-change (Principle VI) (#77)
 - [ ] T078 [P] Record the launch GIF of `/watchtower demo` in both themes to `docs/assets/` (the asset the README references) (#78)
