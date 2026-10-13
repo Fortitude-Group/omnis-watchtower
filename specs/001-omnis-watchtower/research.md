@@ -194,6 +194,28 @@ All verified live on 2026-10-13 (HTTP status, latency from this machine):
 - **Decision**: as in design §6.2. Auto-open at `session.start` only when the viewport is at
   least 144 columns wide **and** the user has `autoOpen` enabled (default on).
 
+## R17. Engine static-scan rules (found while implementing Phase 2)
+
+`claude plugin validate` scans hook source and refuses:
+
+- **`$` passed across an import**: "$ is followed only into a function declared in this same
+  file, never across an import; $ is always spelled $.noun.event(...) at the call site".
+  Closures defined in the hook file that call `$.noun.method` and are handed to imported code
+  **pass** (verified). This produces the ports design in tasks.md Conventions.
+- **State atoms not written literally in the file**: "the state library's read takes a source
+  the scan can read: a reference whose plugin and key are string literals, or what atom…
+  made of one, written there or in a const of this file".
+- **A contract with imports or non-exported top-level types**: "the contract must be
+  self-contained (no import, export … from, require or reference)" and "a top-level `type`
+  without `export` would be global in a dependent's program".
+- In engine tests, `$.command.run` from a test carries no `origin` (verified:
+  `e.origin` undefined), and `$.store` needs `mock.store(on)` ("no implementation for
+  store.get").
+
+Consequence: no design change to behaviour. Only the code structure changes (adapters take
+ports, atoms are per-file, persisted types live in the contract), and it is recorded in
+tasks.md Conventions.
+
 ## R16. Tracker (constitution Principle VII)
 
 - **Decision**: the project of record is **GitHub Issues** on `Fortitude-Group/omnis-watchtower`

@@ -28,8 +28,34 @@ implemented, tested and demonstrated independently.
   and no imports from `adapters/` or `hooks/`. It must run unchanged under Node 24 and the mod
   runtime (no Node built-ins, no `Uint8Array.prototype.toBase64`).
 - No runtime dependencies. Imports are plugin files only, with no `import()` (research R11).
-- Each `src/plugin/hooks/<area>.ts` exports `install(on, options, ctx)`. Only `register.ts`
-  calls them, so lanes never edit the same file.
+- Each `src/plugin/hooks/<area>.ts` exports `install(on, ctx)`. Only `register.ts` calls them, so
+  lanes never edit the same file.
+- **Engine scan rules (verified with `claude plugin validate` during Phase 2; research R17):**
+  1. `$` never crosses an import. A hook file spells every engine call `$.noun.method(...)` itself,
+     or passes `$` only to a top-level function declared in the same file, or to the kit's own
+     `read`/`update`. **Adapters therefore take ports** (plain functions such as `HttpPort`,
+     `StorePort`, `ClockPort` from `src/plugin/adapters/ports.ts`), and each hook file builds
+     them from `$` with local closures.
+  2. A state `atom({ plugin: 'omnis-watchtower', key: '…' })` must be declared in the file that
+     reads or writes it. Each hook file declares its own atoms. Their shapes come from
+     `src/plugin/types/index.d.ts`.
+  3. `src/plugin/types/index.d.ts` is self-contained (no imports) and exports types only. It is
+     the canonical home of every persisted type (`PackageRef`, `Tier`, `Investigation`,
+     `Override`, `SceneEvent`…). `core/model.ts` and `core/scene/events.ts` re-export them.
+  4. Shared logic used by several hook files is pure (for example `appendEvents` in
+     `hooks/context.ts`) and applied by each file with its own `update($, atom, fn)`.
+  5. `/watchtower` sub-command handlers are pure `(args, snapshot) => { text, actions }`,
+     registered via `addSubcommand`. Only `hooks/commands/index.ts` executes actions against `$`.
+     New engine effects are added there as new `Action` variants.
+  6. In engine tests, `mock.store(on)` and `mock.clock(on)` must be installed before code that
+     touches `$.store` or `$.clock`. A command run by a test or plugin may carry no `origin`,
+     which is treated as `'unclassified'` (never human).
+  7. A test's `$` only has call-site nouns (`tool`, `command`, `skill`, …), so an engine test drives
+     a real plugin hook (for example `$.tool.call({ tool: 'Bash', command })` for the gate) and
+     answers the engine nouns underneath with test hooks that return `{ value: … }` (for example
+     `on('http.fetch', () => ({ value: { status, ok, headers: {}, text } }))`). Test hooks may
+     not call `$` themselves. Adapter logic is unit-tested in vitest with fake ports
+     (`tests/adapters/`). A worked example is in `specs/001-omnis-watchtower/engine-test-template/`.
 - Plugin-test fixtures are TypeScript modules (the test environment has no fs or network).
   `http.fetch`, `fs.*`, `agent.spawn` and `turn.complete` are answered or raised by test-tier
   hooks.
@@ -62,17 +88,17 @@ implemented, tested and demonstrated independently.
 
 **⚠️ CRITICAL**: No user-story work begins until this phase is complete.
 
-- [ ] T009 Create `src/plugin/core/model.ts` with every type in [data-model.md](data-model.md) (PackageRef + `key()` + PEP 503 / npm name normalisation and grammar validators, InstallRequest, SignalKind, Signal, Tier, PackageCheck, Investigation, SentinelVerdict, Override, FleetAgent), plus `PackageFacts`: the adapter-to-core struct holding every raw fact (exists, versions with publish times, scripts, dist types, downloads/week, maintainer count, repository, OSV entries), each field `value | 'unknown'` (#9)
-- [ ] T010 [P] Unit-test name normalisation and grammar validation in `tests/core/model.test.ts` (scoped npm names, 214-char limit, PEP 503 folding of `Foo__Bar.baz` → `foo-bar-baz`, invalid names rejected) (#10)
-- [ ] T011 [P] Create `src/plugin/core/scene/events.ts` (SceneEvent union with `at`/`seq`, Scene, AgentSprite, PackageSprite, SentinelSprite, Effect, LogLine, totals) and `src/plugin/core/scene/prng.ts` (seeded mulberry32 stored as a number in Scene), with `tests/core/scene/prng.test.ts` proving identical sequences per seed (#11)
-- [ ] T012 [P] Create `src/plugin/core/render/renderer.ts` with `Viewport`, `Renderer<Out>`, `RasterFrame`, `Theme`, `Rgb`, `FramebufferPass` exactly as [contracts/renderer.md](contracts/renderer.md) (#12)
-- [ ] T013 [P] Create `src/plugin/core/render/base64.ts` (standard padded base64 of a `Uint8Array`) with `tests/core/render/base64.test.ts` comparing against Node `Buffer.toString('base64')` for empty, 1, 2, 3 and random 10 KB inputs (#13)
-- [ ] T014 Create `src/plugin/types/index.d.ts` declaring `interface PluginState { 'omnis-watchtower': { scene; investigations; sessionOverrides; theme; fault; totals } }` with types imported from core, and update `src/plugin/hooks/register.ts` to call `install(on, options, ctx)` from stub modules `gate.ts`, `sentinel.ts`, `fleet.ts`, `pane.tsx`, `status.ts`, `commands/index.ts` (each a no-op export); `npm run validate` clean (#14)
-- [ ] T015 [P] Create `src/plugin/adapters/http.ts`: `fetchJson(url, init)` over `$.http.fetch` with a 4 s AbortController timeout, a concurrency limiter (8), and one 429/5xx back-off retry; returns `{ ok, status, json } | { ok: false, reason: 'timeout'|'network'|'rate-limited'|'http' }`. Engine test in `src/plugin/tests/adapters/http.test.ts`, answering `http.fetch` from a test hook: success, 404, timeout (mock clock), 429 then success, concurrency never above 8 (#15)
-- [ ] T016 [P] Create `src/plugin/adapters/cache.ts`: TTL get/set over `$.store` with namespaced keys and TTL constants (metadata 6 h, OSV 1 h, 404 6 h, verdict 24 h). Engine test `src/plugin/tests/adapters/cache.test.ts` with the mock clock: hit, expiry, namespace isolation (#16)
+- [X] T009 Create `src/plugin/core/model.ts` with every type in [data-model.md](data-model.md) (PackageRef + `key()` + PEP 503 / npm name normalisation and grammar validators, InstallRequest, SignalKind, Signal, Tier, PackageCheck, Investigation, SentinelVerdict, Override, FleetAgent), plus `PackageFacts`: the adapter-to-core struct holding every raw fact (exists, versions with publish times, scripts, dist types, downloads/week, maintainer count, repository, OSV entries), each field `value | 'unknown'` (#9)
+- [X] T010 [P] Unit-test name normalisation and grammar validation in `tests/core/model.test.ts` (scoped npm names, 214-char limit, PEP 503 folding of `Foo__Bar.baz` → `foo-bar-baz`, invalid names rejected) (#10)
+- [X] T011 [P] Create `src/plugin/core/scene/events.ts` (SceneEvent union with `at`/`seq`, Scene, AgentSprite, PackageSprite, SentinelSprite, Effect, LogLine, totals) and `src/plugin/core/scene/prng.ts` (seeded mulberry32 stored as a number in Scene), with `tests/core/scene/prng.test.ts` proving identical sequences per seed (#11)
+- [X] T012 [P] Create `src/plugin/core/render/renderer.ts` with `Viewport`, `Renderer<Out>`, `RasterFrame`, `Theme`, `Rgb`, `FramebufferPass` exactly as [contracts/renderer.md](contracts/renderer.md) (#12)
+- [X] T013 [P] Create `src/plugin/core/render/base64.ts` (standard padded base64 of a `Uint8Array`) with `tests/core/render/base64.test.ts` comparing against Node `Buffer.toString('base64')` for empty, 1, 2, 3 and random 10 KB inputs (#13)
+- [X] T014 Create `src/plugin/types/index.d.ts` declaring `interface PluginState { 'omnis-watchtower': { scene; investigations; sessionOverrides; theme; fault; totals } }` with types imported from core, and update `src/plugin/hooks/register.ts` to call `install(on, options, ctx)` from stub modules `gate.ts`, `sentinel.ts`, `fleet.ts`, `pane.tsx`, `status.ts`, `commands/index.ts` (each a no-op export); `npm run validate` clean (#14)
+- [X] T015 [P] Create `src/plugin/adapters/http.ts`: `fetchJson(url, init)` over `$.http.fetch` with a 4 s AbortController timeout, a concurrency limiter (8), and one 429/5xx back-off retry; returns `{ ok, status, json } | { ok: false, reason: 'timeout'|'network'|'rate-limited'|'http' }`. Engine test in `src/plugin/tests/adapters/http.test.ts`, answering `http.fetch` from a test hook: success, 404, timeout (mock clock), 429 then success, concurrency never above 8 (#15)
+- [X] T016 [P] Create `src/plugin/adapters/cache.ts`: TTL get/set over `$.store` with namespaced keys and TTL constants (metadata 6 h, OSV 1 h, 404 6 h, verdict 24 h). Engine test `src/plugin/tests/adapters/cache.test.ts` with the mock clock: hit, expiry, namespace isolation (#16)
 - [ ] T017 [P] Write `scripts/record-fixtures.mjs` (Node 24, live network): for a named package list, capture the exact responses of every endpoint in [research.md R9](research.md#r9-data-sources-and-endpoints) into `tests/fixtures/http/<ecosystem>/<name>.ts` as exported objects, keyed by URL. Record: npm `chalk`, `lodash`, `express`, `react`, `zod`, `react-dom-utilz` (404), `crossenv` (404 + OSV malware); PyPI `requests`, `numpy`, `pyyaml`, `reqeusts`, `ctx` (OSV malware); plus 50 benign packages per ecosystem from the top of each popular list (#17)
-- [ ] T018 [P] Create `src/plugin/core/text/deny-text.ts` producing the exact REFUSED / HELD / REFUSED-after-investigation / multi-package / VERDICT strings in [contracts/user-surface.md](contracts/user-surface.md#text-claude-receives-deny-reasons), with `tests/core/text/deny-text.test.ts` snapshotting each form, including the multi-package ordering (refused, then held, then others) (#18)
-- [ ] T019 Create `src/plugin/hooks/commands/index.ts`: the `/watchtower` router registered at `session.start` via `$.command.register`, dispatching sub-commands to per-file handlers under `src/plugin/hooks/commands/` (stubs that answer "not yet available"), with unknown sub-command help text (#19)
+- [X] T018 [P] Create `src/plugin/core/text/deny-text.ts` producing the exact REFUSED / HELD / REFUSED-after-investigation / multi-package / VERDICT strings in [contracts/user-surface.md](contracts/user-surface.md#text-claude-receives-deny-reasons), with `tests/core/text/deny-text.test.ts` snapshotting each form, including the multi-package ordering (refused, then held, then others) (#18)
+- [X] T019 Create `src/plugin/hooks/commands/index.ts`: the `/watchtower` router registered at `session.start` via `$.command.register`, dispatching sub-commands to per-file handlers under `src/plugin/hooks/commands/` (stubs that answer "not yet available"), with unknown sub-command help text (#19)
 
 **Checkpoint**: shared types, wiring skeleton, HTTP and cache primitives, fixtures and contract strings are in place. Lanes can now fan out.
 

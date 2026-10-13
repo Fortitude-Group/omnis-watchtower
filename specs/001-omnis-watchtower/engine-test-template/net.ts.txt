@@ -1,0 +1,13 @@
+import type { On } from 'claude-code'
+import { fetchJson } from '../adapters/http'
+import type { HttpIo } from '../adapters/ports'
+
+export const install = (on: On) => {
+  on('skill.prompt', async ($, e) => {
+    const http: HttpIo = {
+      fetch: (url, init) => $.http.fetch(url, init),
+      after: (ms, fn) => $.clock.after(ms, fn),
+    }
+    return { text: JSON.stringify(await fetchJson(http, e.text)) }
+  })
+}

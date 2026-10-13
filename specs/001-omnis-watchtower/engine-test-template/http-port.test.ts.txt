@@ -1,0 +1,35 @@
+import { expect, mock, test } from 'claude-code/testing'
+
+const reply = (status: number, text: string) => ({ value: { status, ok: status < 300, headers: {}, text } })
+
+test('200', async ($, on) => {
+  mock.clock(on)
+  on('http.fetch', () => reply(200, '{"a":1}'))
+  const { text } = await $.skill.prompt({ skill: 'probe', text: 'https://x.example/' })
+  expect(JSON.parse(text)).toEqual({ ok: true, status: 200, json: { a: 1 } })
+})
+test('404', async ($, on) => {
+  mock.clock(on)
+  on('http.fetch', () => reply(404, '{}'))
+  const { text } = await $.skill.prompt({ skill: 'probe', text: 'https://x.example/' })
+  expect(JSON.parse(text)).toEqual({ ok: false, status: 404, reason: 'http' })
+})
+test('timeout', async ($, on) => {
+  const clock = mock.clock(on)
+  on('http.fetch', () => new Promise<never>(() => {}))
+  let text: string | undefined
+  $.skill.prompt({ skill: 'probe', text: 'https://x.example/' }).then(r => { text = r.text })
+  await clock.advance(3_999)
+  expect(text).toBeUndefined()
+  await clock.advance(1)
+  expect(text && JSON.parse(text)).toEqual({ ok: false, reason: 'timeout' })
+})
+test('429 then 200', async ($, on) => {
+  const clock = mock.clock(on)
+  let n = 0
+  on('http.fetch', () => ++n === 1 ? reply(429, '') : reply(200, '{"b":2}'))
+  let text: string | undefined
+  $.skill.prompt({ skill: 'probe', text: 'https://x.example/' }).then(r => { text = r.text })
+  await clock.advance(500)
+  expect(text && JSON.parse(text)).toEqual({ ok: true, status: 200, json: { b: 2 } })
+})
