@@ -8,7 +8,7 @@
 import { atom, read, update } from 'claude-code'
 import type { On } from 'claude-code'
 
-import { sessionTotals, statusLine, toastsFor } from '../core/text/status-line'
+import { addTotals, emptyTotals, statusLine, toastsFor } from '../core/text/status-line'
 import type { SceneEvent, WatchtowerFault } from '../types'
 import type { Ctx } from './context'
 
@@ -16,6 +16,7 @@ const events = atom({ plugin: 'omnis-watchtower', key: 'events' } as const, [] a
 const fault = atom({ plugin: 'omnis-watchtower', key: 'fault' } as const, null as WatchtowerFault | null)
 const contextQueue = atom({ plugin: 'omnis-watchtower', key: 'contextQueue' } as const, [] as string[])
 const demo = atom({ plugin: 'omnis-watchtower', key: 'demo' } as const, false)
+const totals = atom({ plugin: 'omnis-watchtower', key: 'totals' } as const, emptyTotals())
 
 /** True when a state.set resolved as written (the engine has been seen to wrap it as `{ value }`). */
 const wasSet = (r: unknown): boolean => {
@@ -30,10 +31,14 @@ export const install = (on: On, ctx: Ctx): void => {
     if (!wasSet(r)) return r
     const now = e.key === 'events' ? (e.value as SceneEvent[]) : await read($, events)
     const faulted = e.key === 'fault' ? e.value !== null && e.value !== undefined : (await read($, fault)) !== null
-    await $.ui.status(statusLine(sessionTotals(now), faulted))
-    if (before && !(await read($, demo))) {
-      const lastSeq = before.at(-1)?.seq ?? 0
-      for (const text of toastsFor(before, now.filter(ev => ev.seq > lastSeq), ctx.options.mode)) await $.ui.toast(text)
+    // Tally only the newly appended events into the running totals, so nothing ages out of the
+    // count when the ring buffer drops old events (Principle XII: a count must not silently shrink)
+    const lastSeq = before?.at(-1)?.seq ?? 0
+    const added = before ? now.filter(ev => ev.seq > lastSeq) : []
+    const current = added.length ? await update($, totals, t => addTotals(t, added)) : await read($, totals)
+    await $.ui.status(statusLine(current, faulted))
+    if (added.length && !(await read($, demo))) {
+      for (const text of toastsFor(before ?? [], added, ctx.options.mode)) await $.ui.toast(text)
     }
     return r
   })

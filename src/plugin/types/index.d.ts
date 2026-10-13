@@ -68,6 +68,20 @@ export type SceneEvent = Stamp &
 
 export type WatchtowerTheme = 'radar' | 'cracktro'
 
+/** Running session totals, kept apart from the 500-event ring buffer so long sessions never undercount. */
+export type SessionTotals = {
+  intercepts: number
+  passed: number
+  held: number
+  refused: number
+  unverified: number
+  unchecked: number
+  overridden: number
+  tokens: TokenUsage
+  estCostUsd: number
+  unpricedTokens: number
+}
+
 declare module 'claude-code' {
   interface PluginState {
     'omnis-watchtower': {
@@ -86,6 +100,8 @@ declare module 'claude-code' {
       contextQueue: string[]
       /** True while the demo replay owns the pane. */
       demo: boolean
+      /** Every event ever appended, tallied as it arrives (status.ts); the ring buffer holds only the last 500. */
+      totals: SessionTotals
     }
   }
 }

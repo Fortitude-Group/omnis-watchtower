@@ -4,29 +4,24 @@
 import { totalTokens } from '../data/prices'
 import { key as refKey } from '../model'
 import { formatTokens } from '../render/overlay'
-import type { SceneEvent, TokenUsage } from '../../types'
+import type { SceneEvent, SessionTotals } from '../../types'
 import { label } from './deny-text'
 
-export type SessionTotals = {
-  intercepts: number
-  passed: number
-  held: number
-  refused: number
-  unverified: number
-  unchecked: number
-  overridden: number
-  tokens: TokenUsage
-  estCostUsd: number
-  unpricedTokens: number
-}
+export type { SessionTotals } from '../../types'
 
-export const sessionTotals = (events: readonly SceneEvent[]): SessionTotals => {
-  const t: SessionTotals = {
-    intercepts: 0, passed: 0, held: 0, refused: 0, unverified: 0, unchecked: 0, overridden: 0,
-    tokens: { input: 0, output: 0, cacheRead: 0, cacheWrite: 0 },
-    estCostUsd: 0,
-    unpricedTokens: 0,
-  }
+export const emptyTotals = (): SessionTotals => ({
+  intercepts: 0, passed: 0, held: 0, refused: 0, unverified: 0, unchecked: 0, overridden: 0,
+  tokens: { input: 0, output: 0, cacheRead: 0, cacheWrite: 0 },
+  estCostUsd: 0,
+  unpricedTokens: 0,
+})
+
+/** Totals of a whole event list. Only exact while the session is under the ring buffer's 500 events. */
+export const sessionTotals = (events: readonly SceneEvent[]): SessionTotals => addTotals(emptyTotals(), events)
+
+/** `totals` with `added` tallied in: the running count status.ts keeps, so nothing ages out. */
+export const addTotals = (totals: SessionTotals, added: readonly SceneEvent[]): SessionTotals => {
+  const t: SessionTotals = { ...totals, tokens: { ...totals.tokens } }
   const bump = (tier: string) => {
     if (tier === 'pass') t.passed++
     else if (tier === 'hold') t.held++
@@ -34,7 +29,7 @@ export const sessionTotals = (events: readonly SceneEvent[]): SessionTotals => {
     else if (tier === 'unverified') t.unverified++
     else if (tier === 'unchecked') t.unchecked++
   }
-  for (const e of events) {
+  for (const e of added) {
     switch (e.type) {
       case 'PackageIntercepted': t.intercepts++; break
       case 'PackageScored': bump(e.tier); break

@@ -12,6 +12,7 @@ import { emptyScene, type Scene } from '../core/scene/events'
 import { reduce } from '../core/scene/reduce'
 import { advanceReplay, replayDone, startReplay, type ReplayState } from '../core/scene/replay'
 import { step } from '../core/scene/step'
+import { emptyTotals } from '../core/text/status-line'
 import type { Override, SceneEvent, WatchtowerTheme } from '../types'
 import { CONFIRM_PREFIX, DISMISS_PREFIX, confirmLabel } from './commands/overrides'
 import type { Ctx, Options } from './context'
@@ -19,6 +20,7 @@ import type { Ctx, Options } from './context'
 const events = atom({ plugin: 'omnis-watchtower', key: 'events' } as const, [] as SceneEvent[])
 const demo = atom({ plugin: 'omnis-watchtower', key: 'demo' } as const, false)
 // Overrides an agent or a relayed command asked for, waiting on the person's press (hooks/press.ts)
+const totals = atom({ plugin: 'omnis-watchtower', key: 'totals' } as const, emptyTotals())
 const pendingOverrides = atom({ plugin: 'omnis-watchtower', key: 'pendingOverrides' } as const, {} as Record<string, Override>)
 // A plain reference, so an unset theme reads undefined and falls back to the stored or configured one
 const themeRef = { plugin: 'omnis-watchtower', key: 'theme' } as const
@@ -131,6 +133,12 @@ async function tick($: Engine): Promise<void> {
       }
     } else {
       replay = undefined
+      // The scene only knows events still in the 500-event buffer; the running totals know all
+      const t = await read($, totals)
+      if (t.intercepts > 0 || t.overridden > 0 || t.tokens.input + t.tokens.output > 0) {
+        const { tokens, estCostUsd, unpricedTokens, ...counts } = t
+        scene = { ...scene, totals: counts, tokens, estCostUsd, unpricedTokens }
+      }
     }
 
     applyTheme(isTheme(themeNow.value) ? themeNow.value : fallbackTheme)

@@ -79,3 +79,19 @@ describe('formatAge', () => {
     expect(formatAge(ms)).toBe(text)
   })
 })
+
+describe('running totals (Principle XII: counts never shrink when the ring buffer drops events)', () => {
+  test('adding events in batches equals tallying them all at once', async () => {
+    const { addTotals, emptyTotals, sessionTotals } = await import('../../../src/plugin/core/text/status-line')
+    const ref = { ecosystem: 'npm' as const, name: 'x' }
+    const all = Array.from({ length: 1_200 }, (_, i) => i % 2 === 0
+      ? { type: 'PackageIntercepted' as const, requestId: `r${i}`, agentId: 'main', ref, at: i, seq: i + 1 }
+      : { type: 'PackageScored' as const, requestId: `r${i - 1}`, ref, tier: i % 4 === 1 ? 'refuse' as const : 'pass' as const, evidence: [], at: i, seq: i + 1 })
+    let running = emptyTotals()
+    for (let i = 0; i < all.length; i += 7) running = addTotals(running, all.slice(i, i + 7))
+    expect(running).toEqual(sessionTotals(all))
+    expect(running.intercepts).toBe(600)
+    // what the 500-event buffer alone would report
+    expect(sessionTotals(all.slice(-500)).intercepts).toBe(250)
+  })
+})
