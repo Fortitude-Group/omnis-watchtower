@@ -15,9 +15,10 @@ test('unknown sub-commands get the help text', async ($, on) => {
   expect(r.text).toContain('/watchtower theme <radar|cracktro>')
 })
 
-test('known sub-commands without a handler say so', async ($, on) => {
+test('a known sub-command reaches its handler', async ($, on) => {
   mock.store(on)
   mock.clock(on)
   const r = await $.command.run(run('legend'))
-  expect(r.text).toBe('/watchtower legend is not available yet.')
+  expect(r.text).toContain('Omnis Watchtower legend')
+  expect(r.text).toContain('What it counts and leaves out')
 })
