@@ -43,14 +43,14 @@ implemented, tested and demonstrated independently.
 
 **Purpose**: Toolchain, manifests and the empty plugin shell, proven to load.
 
-- [ ] T001 Create root `package.json` (private, `"type": "module"`, Node `>=24`), with exact-pinned devDependencies `typescript` and `vitest` (latest stable, no `^`/`~`) and scripts `typecheck` (`tsc -p tsconfig.json --noEmit`), `test` (`vitest run`), `test:plugin` (`claude plugin test src/plugin`), `validate` (`claude plugin validate src/plugin`); run `npm install` to create `package-lock.json` (#1)
-- [ ] T002 [P] Create `tsconfig.json` at repo root: `strict`, `target` ES2022, `module` ESNext, `moduleResolution` Bundler, `jsx` react with `jsxFactory` `h` and `jsxFragmentFactory` `Fragment`, `noEmit`, include `src/plugin/**/*` and `tests/**/*`; extend or reference the engine-written `src/plugin/.claude-plugin/types/tsconfig.json` once it exists (see T006) (#2)
-- [ ] T003 [P] Create `vitest.config.ts` running `tests/**/*.test.ts` only (never `src/plugin/tests`), Node environment, no globals (#3)
-- [ ] T004 [P] Create `.claude-plugin/marketplace.json` listing one plugin `omnis-watchtower` with source `./src/plugin`, owner Fortitude Omnis Group, description from spec Overview (#4)
-- [ ] T005 Create `src/plugin/.claude-plugin/plugin.json`: name `omnis-watchtower`, version `0.1.0`, one-line description, `"types": "./types/index.d.ts"`, and every `userConfig` field with type, default and options exactly as in [contracts/user-surface.md](contracts/user-surface.md#userconfig-pluginjson) (#5)
-- [ ] T006 Create `src/plugin/hooks/hooks.json` (`{ "modules": ["./register.ts"] }`) and a minimal `src/plugin/hooks/register.ts`; run `claude --plugin-dir src/plugin` once so the engine writes `src/plugin/.claude-plugin/types/`; add that folder to `.gitignore`; run `npm run validate`, which must report nothing refused (#6)
-- [ ] T007 Add `src/plugin/tests/smoke.test.ts` (one trivial engine test) and confirm `npm run test:plugin` discovers tests in the `tests/` subfolder. If it does not, move engine tests to the plugin root and update plan.md "Structure Decision" and these conventions in the same commit (#7)
-- [ ] T008 [P] Add `tests/smoke.test.ts` and confirm `npm test` runs it under vitest (#8)
+- [X] T001 Create root `package.json` (private, `"type": "module"`, Node `>=24`), with exact-pinned devDependencies `typescript` and `vitest` (latest stable, no `^`/`~`) and scripts `typecheck` (`tsc -p tsconfig.json --noEmit`), `test` (`vitest run`), `test:plugin` (`claude plugin test src/plugin`), `validate` (`claude plugin validate src/plugin`); run `npm install` to create `package-lock.json` (#1)
+- [X] T002 [P] Create `tsconfig.json` at repo root: `strict`, `target` ES2022, `module` ESNext, `moduleResolution` Bundler, `jsx` react with `jsxFactory` `h` and `jsxFragmentFactory` `Fragment`, `noEmit`, include `src/plugin/**/*` and `tests/**/*`; extend or reference the engine-written `src/plugin/.claude-plugin/types/tsconfig.json` once it exists (see T006) (#2)
+- [X] T003 [P] Create `vitest.config.ts` running `tests/**/*.test.ts` only (never `src/plugin/tests`), Node environment, no globals (#3)
+- [X] T004 [P] Create `.claude-plugin/marketplace.json` listing one plugin `omnis-watchtower` with source `./src/plugin`, owner Fortitude Omnis Group, description from spec Overview (#4)
+- [X] T005 Create `src/plugin/.claude-plugin/plugin.json`: name `omnis-watchtower`, version `0.1.0`, one-line description, `"types": "./types/index.d.ts"`, and every `userConfig` field with type, default and options exactly as in [contracts/user-surface.md](contracts/user-surface.md#userconfig-pluginjson) (#5)
+- [X] T006 Create `src/plugin/hooks/hooks.json` (`{ "modules": ["./register.ts"] }`) and a minimal `src/plugin/hooks/register.ts`; run `claude --plugin-dir src/plugin` once so the engine writes `src/plugin/.claude-plugin/types/`; add that folder to `.gitignore`; run `npm run validate`, which must report nothing refused (#6)
+- [X] T007 Add `src/plugin/tests/smoke.test.ts` (one trivial engine test) and confirm `npm run test:plugin` discovers tests in the `tests/` subfolder. If it does not, move engine tests to the plugin root and update plan.md "Structure Decision" and these conventions in the same commit (#7)
+- [X] T008 [P] Add `tests/smoke.test.ts` and confirm `npm test` runs it under vitest (#8)
 
 **Checkpoint**: `npm run typecheck`, `npm test`, `npm run validate`, `npm run test:plugin` are all green on an empty plugin.
 

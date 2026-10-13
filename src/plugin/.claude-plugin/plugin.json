@@ -1,0 +1,18 @@
+{
+  "name": "omnis-watchtower",
+  "version": "0.1.0",
+  "description": "Mission control for your coding agents, with a supply-chain tripwire that checks every npm and PyPI install before it runs.",
+  "author": { "name": "Fortitude Omnis Group" },
+  "repository": "https://github.com/Fortitude-Group/omnis-watchtower",
+  "license": "UNLICENSED",
+  "userConfig": {
+    "mode": { "type": "string", "title": "Mode", "description": "enforce refuses dangerous installs; warn-only reports them but never refuses.", "default": "enforce", "options": ["enforce", "warn-only"] },
+    "strict": { "type": "boolean", "title": "Strict", "description": "Refuse installs if Watchtower itself faults while checking (default: allow with a loud warning).", "default": false },
+    "theme": { "type": "string", "title": "Theme", "description": "Mission-control look.", "default": "radar", "options": ["radar", "cracktro"] },
+    "autoOpen": { "type": "boolean", "title": "Auto-open", "description": "Open the mission-control pane at session start when the terminal is at least 144 columns wide.", "default": true },
+    "reducedMotion": { "type": "boolean", "title": "Reduced motion", "description": "Static effects, at most 4 frames per second.", "default": false },
+    "sentinelModel": { "type": "string", "title": "Sentinel model", "description": "Model the Sentinel investigator runs on.", "default": "haiku", "options": ["haiku", "sonnet"] },
+    "sentinelTimeoutSec": { "type": "number", "title": "Sentinel timeout (seconds)", "description": "How long a held package waits for a verdict before it is refused (60 to 900).", "default": 180 },
+    "privateAllowlist": { "type": "string", "title": "Private package patterns", "description": "Comma-separated globs for private packages that are never checked against public registries, e.g. @acme/*, acme-*.", "default": "" }
+  }
+}

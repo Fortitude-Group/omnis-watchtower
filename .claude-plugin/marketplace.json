@@ -1,0 +1,11 @@
+{
+  "name": "omnis-watchtower",
+  "owner": { "name": "Fortitude Omnis Group" },
+  "plugins": [
+    {
+      "name": "omnis-watchtower",
+      "source": "./src/plugin",
+      "description": "Mission control for your coding agents, with a supply-chain tripwire that checks every npm and PyPI install before it runs."
+    }
+  ]
+}
