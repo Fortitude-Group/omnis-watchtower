@@ -194,7 +194,7 @@ export const reduce = (scene: Scene, event: SceneEvent): Scene => {
         next = { ...next, rng: n.rng }
         pkg = n.pkg
       }
-      const scored: PackageSprite = { ...pkg, tier: event.tier, evidence: event.evidence }
+      const scored: PackageSprite = { ...pkg, tier: event.tier, evidence: event.evidence, ...(event.pinnedTo ? { pinnedTo: event.pinnedTo } : {}) }
       // An inbound sprite keeps flying; step() resolves it when it reaches the ring.
       if (scored.phase === 'atRing') return resolveAtRing(next, scored, event.tier)
       return { ...next, packages: capRecord({ ...next.packages, [id]: scored }, MAX_PACKAGES) }

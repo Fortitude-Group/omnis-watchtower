@@ -92,6 +92,8 @@ export type PackageCheck = {
   alternative?: string
   /** FR-035 cooldown pin: the version the install is rewritten to. */
   pinnedTo?: string
+  /** The fresh release the pin avoided (the version `latest` resolved to). */
+  pinnedFrom?: string
   decidedBy: 'fast-score' | 'sentinel' | 'override' | 'cache' | 'warn-only' | 'cooldown'
   decidedAt: number
   expiresAt: number

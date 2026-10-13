@@ -129,6 +129,11 @@ export const resolvePackage = (ref: Pick<PackageRef, 'ecosystem' | 'name'>, conf
   return privateIndexes[0] ? { kind: 'mirror', registry: privateIndexes[0] } : { kind: 'public' }
 }
 
+// Every environment variable the loader reads. The engine's scan wants `$.env.get` called with
+// literal names, so hook files answer EnvPort with a switch over exactly this list.
+export const CONFIG_ENV_NAMES = ['HOME', 'USERPROFILE', 'APPDATA', 'VIRTUAL_ENV', 'PIP_CONFIG_FILE', 'PIP_INDEX_URL', 'PIP_EXTRA_INDEX_URL', 'npm_config_registry'] as const
+export type ConfigEnvName = (typeof CONFIG_ENV_NAMES)[number]
+
 export type ConfigSources = {
   readFile: ReadFilePort
   env: EnvPort
@@ -165,7 +170,7 @@ export const loadPrivateConfig = async (src: ConfigSources): Promise<PrivateConf
   const config = emptyConfig()
   config.allowlist = parseAllowlist(src.allowlist)
   const [home, appData, venv, pipConfigFile, pipIndex, pipExtra, npmRegistry] = await Promise.all(
-    ['HOME', 'APPDATA', 'VIRTUAL_ENV', 'PIP_CONFIG_FILE', 'PIP_INDEX_URL', 'PIP_EXTRA_INDEX_URL', 'npm_config_registry']
+    (['HOME', 'APPDATA', 'VIRTUAL_ENV', 'PIP_CONFIG_FILE', 'PIP_INDEX_URL', 'PIP_EXTRA_INDEX_URL', 'npm_config_registry'] as const)
       .map(name => getEnv(src.env, name)),
   )
   const userHome = src.home ?? home ?? await getEnv(src.env, 'USERPROFILE')

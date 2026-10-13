@@ -36,6 +36,10 @@ export const sentinelRefusedText = (ref: PackageRef, evidence: string[]): string
     `Override (human only): /watchtower allow ${ref.ecosystem}:${ref.name}`,
   ].join('\n')
 
+/** FR-035: context for a command that ran rewritten to a cooldown pin. */
+export const pinnedText = (ref: PackageRef, pinned: string, fresh: string | undefined): string =>
+  `WATCHTOWER PINNED ${ref.ecosystem}:${ref.name} → ${pinned} (latest${fresh && fresh !== '?' ? ` ${fresh}` : ''} is under 72 hours old; cooldown against hijacked releases)`
+
 export const verdictContext = (ref: PackageRef, allowed: boolean, topEvidence: string): string =>
   `WATCHTOWER VERDICT ${label(ref)} → ${allowed ? 'allowed' : 'refused'}: ${topEvidence}`
 

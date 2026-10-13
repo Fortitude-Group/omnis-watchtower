@@ -42,6 +42,8 @@ export type PackageSprite = {
   distance: number
   pos: Vec
   evidence: string[]
+  /** FR-035: the cooldown pin the install ran with. */
+  pinnedTo?: string
   /** ms spent in the current phase. */
   phaseMs: number
 }

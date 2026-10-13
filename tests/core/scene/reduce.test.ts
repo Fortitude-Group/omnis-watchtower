@@ -203,3 +203,12 @@ describe('scene-wide', () => {
     expect(() => reduce(ringed, events[4]!)).not.toThrow()
   })
 })
+
+test('a pinned package keeps its pin on the sprite for the label (FR-035)', async () => {
+  const { reduce } = await import('../../../src/plugin/core/scene/reduce')
+  const { emptyScene } = await import('../../../src/plugin/core/scene/events')
+  const ref = { ecosystem: 'npm' as const, name: 'zod' }
+  let s = reduce(emptyScene(1), { type: 'PackageIntercepted', requestId: 'r1', agentId: 'main', ref, at: 0, seq: 1 })
+  s = reduce(s, { type: 'PackageScored', requestId: 'r1', ref, tier: 'pass', evidence: ['pinned'], pinnedTo: '4.6.5', at: 1, seq: 2 })
+  expect(Object.values(s.packages)[0]?.pinnedTo).toBe('4.6.5')
+})

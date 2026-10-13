@@ -4,6 +4,7 @@ import {
   commandText,
   heldText,
   investigationFailedText,
+  pinnedText,
   refusedText,
   sentinelRefusedText,
   verdictContext,
@@ -71,6 +72,15 @@ test('investigation failure, sentinel refusal and verdict context', () => {
   `)
   expect(verdictContext(ref, true, 'Maintained fork of a known library')).toBe(
     'WATCHTOWER VERDICT npm:fastapi-auth-kit → allowed: Maintained fork of a known library',
+  )
+})
+
+test('pinned text names both versions, and copes with an unknown fresh one', () => {
+  expect(pinnedText({ ecosystem: 'npm', name: 'zod' }, '4.6.5', '4.6.7')).toBe(
+    'WATCHTOWER PINNED npm:zod → 4.6.5 (latest 4.6.7 is under 72 hours old; cooldown against hijacked releases)',
+  )
+  expect(pinnedText({ ecosystem: 'pypi', name: 'numpy' }, '2.5.3', '?')).toBe(
+    'WATCHTOWER PINNED pypi:numpy → 2.5.3 (latest is under 72 hours old; cooldown against hijacked releases)',
   )
 })
 

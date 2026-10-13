@@ -95,7 +95,7 @@ export const decide = (input: DecideInput): PackageCheck => {
     tier,
     signals,
     ...(alternative && tier !== 'pass' ? { alternative } : {}),
-    ...(pinnedTo ? { pinnedTo } : {}),
+    ...(pinnedTo ? { pinnedTo, ...(cooldown ? { pinnedFrom: cooldown.latest } : {}) } : {}),
     decidedBy,
     decidedAt: now,
     expiresAt: now + ttlMs,

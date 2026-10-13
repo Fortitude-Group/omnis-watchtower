@@ -55,7 +55,7 @@ export type SceneEvent = Stamp &
     | { type: 'AgentActed'; agentId: string; summary: string }
     | { type: 'AgentFinished'; agentId: string }
     | { type: 'PackageIntercepted'; requestId: string; agentId: string; ref: PackageRef }
-    | { type: 'PackageScored'; requestId: string; ref: PackageRef; tier: Tier; evidence: string[] }
+    | { type: 'PackageScored'; requestId: string; ref: PackageRef; tier: Tier; evidence: string[]; pinnedTo?: string }
     | { type: 'SentinelDispatched'; key: string; sentinelId: string }
     | { type: 'VerdictIssued'; key: string; tier: Tier; evidence: string[] }
     | { type: 'OverrideApplied'; key: string; action: 'allow' | 'block'; scope: 'session' | 'permanent' }

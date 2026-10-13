@@ -76,7 +76,7 @@ export const agentColor = (type: string): Rgb => {
 export const packageLook = (p: PackageSprite, t: ThemeTokens): { color: Rgb; glyph: string; word: string } => {
   switch (p.phase) {
     case 'passing':
-      return { color: t.pass, glyph: '✔', word: p.tier && p.tier !== 'pass' ? p.tier : 'passed' }
+      return { color: t.pass, glyph: '✔', word: p.pinnedTo ? `pinned ${p.pinnedTo}` : p.tier && p.tier !== 'pass' ? p.tier : 'passed' }
     case 'bursting':
       return { color: t.refuse, glyph: '✖', word: 'refused' }
     case 'held':

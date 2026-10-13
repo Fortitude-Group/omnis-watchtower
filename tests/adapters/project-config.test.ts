@@ -174,3 +174,13 @@ describe('loadPrivateConfig', () => {
     expect(config.pypi).toEqual({ indexUrl: 'https://project.acme/simple', extraIndexUrls: ['https://appdata.acme/simple'] })
   })
 })
+
+it('the gate hook answers every environment variable the loader reads', async () => {
+  const { readFileSync } = await import('node:fs')
+  const { CONFIG_ENV_NAMES, loadPrivateConfig } = await import('../../src/plugin/adapters/project-config')
+  const gate = readFileSync('src/plugin/hooks/gate.ts', 'utf8')
+  for (const name of CONFIG_ENV_NAMES) expect(gate).toContain(`case '${name}': return $.env.get('${name}')`)
+  const asked = new Set<string>()
+  await loadPrivateConfig({ readFile: async () => undefined, env: n => { asked.add(n); return undefined }, cwd: '.' })
+  for (const name of asked) expect(CONFIG_ENV_NAMES as readonly string[]).toContain(name)
+})
