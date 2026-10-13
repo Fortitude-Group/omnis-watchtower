@@ -1,0 +1,5 @@
+.superpowers/
+.code-review-graph/
+node_modules/
+.env
+.env.*
