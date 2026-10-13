@@ -17,6 +17,7 @@ import {
   commandText,
   heldText,
   investigationFailedText,
+  blockedText,
   pinnedText,
   refusedText,
   sentinelRefusedText,
@@ -97,6 +98,7 @@ const textFor = (check: PackageCheck, investigations: Record<string, Investigati
   if (inv && (inv.status === 'failed' || inv.status === 'timedOut')) {
     return investigationFailedText(check.ref, inv.status === 'failed' ? 'failed' : 'timed out', inv.failure ?? 'no verdict')
   }
+  if (check.decidedBy === 'override') return blockedText(check.ref)
   if (check.decidedBy === 'sentinel') return sentinelRefusedText(check.ref, check.signals.map(s => s.evidence))
   return check.tier === 'hold' ? heldText(check) : refusedText(check)
 }

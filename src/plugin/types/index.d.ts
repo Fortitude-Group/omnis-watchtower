@@ -75,6 +75,11 @@ declare module 'claude-code' {
       events: SceneEvent[]
       investigations: Record<string, Investigation>
       sessionOverrides: Record<string, Override>
+      /**
+       * Overrides asked for from outside the person's prompt (research R1), by override key. The pane
+       * draws a Button keyed `confirm-override:<key>` for each; hooks/press.ts applies it on a press.
+       */
+      pendingOverrides: Record<string, Override>
       theme: WatchtowerTheme
       fault: WatchtowerFault | null
       /** Lines added to the next turn's context (verdicts), drained by status.ts via prompt.context. */

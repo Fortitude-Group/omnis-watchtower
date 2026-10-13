@@ -221,9 +221,9 @@ implemented, tested and demonstrated independently.
 
 - [X] T068 [P] [US5] `tests/core/overrides.test.ts`: package-spec parsing (`npm:name`, `pypi:name`, `@ver`, bare-name disambiguation input), matching by name with and without version, precedence (**block beats allow** whatever the scope; within the same action the most recent wins), clear (#68)
 - [ ] T069 [P] [US5] Engine test `src/plugin/tests/overrides.test.ts`: `/watchtower allow` with `origin.kind: 'composer'` applies; with `sdk`, `plugin`, `task-notification`, `peer` and `bridge` origins it is refused and offers a pane confirmation Button; pressing that Button applies it (research R1); `--permanent` persists in `$.store` across a simulated reload; every override emits `OverrideApplied`; `/watchtower recheck` drops the verdict cache and starts a new investigation (#69)
-- [ ] T070 [P] [US5] Engine test `src/plugin/tests/modes.test.ts`: `mode: 'warn-only'` allows a refused package but still toasts and records it; default mode with an injected gate fault allows and raises the fault banner, toast and status marker; `strict: true` with the same fault refuses (#70)
-- [ ] T071 [US5] Implement `src/plugin/core/overrides.ts` and `src/plugin/hooks/commands/overrides.ts` (`allow`, `block`, `overrides`, `overrides clear`, `recheck`) with the origin rule and the pane confirmation Button via `ui.press`; session overrides in `$.state`, permanent ones in `$.store`; to pass T068–T069 (#71)
-- [ ] T072 [US5] Add a test-only fault-injection switch to `src/plugin/hooks/gate.ts` (an `options` field absent from the public `userConfig`, used only by tests) and verify the `.catch` paths to pass T070 (#72)
+- [X] T070 [P] [US5] Engine test `src/plugin/tests/modes.test.ts`: `mode: 'warn-only'` allows a refused package but still toasts and records it; default mode with an injected gate fault allows and raises the fault banner, toast and status marker; `strict: true` with the same fault refuses (#70)
+- [X] T071 [US5] Implement `src/plugin/core/overrides.ts` and `src/plugin/hooks/commands/overrides.ts` (`allow`, `block`, `overrides`, `overrides clear`, `recheck`) with the origin rule and the pane confirmation Button via `ui.press`; session overrides in `$.state`, permanent ones in `$.store`; to pass T068–T069 (#71)
+- [X] T072 [US5] Add a test-only fault-injection switch to `src/plugin/hooks/gate.ts` (an `options` field absent from the public `userConfig`, used only by tests) and verify the `.catch` paths to pass T070 (#72)
 
 ---
 

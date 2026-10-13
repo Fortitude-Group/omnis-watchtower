@@ -6,6 +6,7 @@ import type { On } from 'claude-code'
 
 import { appendEvents, type Ctx } from '../context'
 import type { Investigation, Override, SceneEvent, WatchtowerTheme } from '../../types'
+import { THEME_STORE_KEY } from '../pane'
 import { handlers, helpText, KNOWN, type Reply, type Snapshot } from './registry'
 // Each handler file registers its sub-command with addSubcommand when it loads
 import './open'
@@ -20,7 +21,9 @@ export { addSubcommand, helpText, type Action, type Handler, type Reply, type Sn
 const events = atom({ plugin: 'omnis-watchtower', key: 'events' } as const, [] as SceneEvent[])
 const investigations = atom({ plugin: 'omnis-watchtower', key: 'investigations' } as const, {} as Record<string, Investigation>)
 const sessionOverrides = atom({ plugin: 'omnis-watchtower', key: 'sessionOverrides' } as const, {} as Record<string, Override>)
+const pendingOverrides = atom({ plugin: 'omnis-watchtower', key: 'pendingOverrides' } as const, {} as Record<string, Override>)
 const theme = atom({ plugin: 'omnis-watchtower', key: 'theme' } as const, 'radar' as WatchtowerTheme)
+const demo = atom({ plugin: 'omnis-watchtower', key: 'demo' } as const, false)
 
 export const PANE_ID = 'watchtower'
 
@@ -49,6 +52,7 @@ export const install = (on: On, ctx: Ctx): void => {
       investigations: await read($, investigations),
       sessionOverrides: await read($, sessionOverrides),
       permanentOverrides: (stored ?? {}) as Record<string, Override>,
+      pendingOverrides: await read($, pendingOverrides),
       ctx,
     }
     const reply = dispatch(e.args, snap)
@@ -60,6 +64,7 @@ export const install = (on: On, ctx: Ctx): void => {
           break
         case 'setTheme':
           await update($, theme, () => action.theme)
+          await $.store.set(THEME_STORE_KEY, action.theme)
           break
         case 'putOverride': {
           const o = action.override
@@ -68,6 +73,7 @@ export const install = (on: On, ctx: Ctx): void => {
           } else {
             await update($, sessionOverrides, all => ({ ...all, [o.key]: o }))
           }
+          await update($, pendingOverrides, ({ [o.key]: _, ...rest }) => rest)
           await update($, events, l => appendEvents(l, snap.now, { type: 'OverrideApplied', key: o.key, action: o.action, scope: o.scope }))
           break
         }
@@ -75,15 +81,31 @@ export const install = (on: On, ctx: Ctx): void => {
           const { [action.key]: _s, ...session } = snap.sessionOverrides
           const { [action.key]: _p, ...permanent } = snap.permanentOverrides
           await update($, sessionOverrides, () => session)
+          await update($, pendingOverrides, ({ [action.key]: _, ...rest }) => rest)
           await $.store.set(PERMANENT_OVERRIDES_KEY, permanent)
           break
         }
-        case 'requeueInvestigation':
-          await $.store.delete(action.verdictCacheKey)
-          await update($, investigations, all => ({ ...all, [action.investigation.key]: action.investigation }))
+        case 'putPendingOverride':
+          await update($, pendingOverrides, all => ({ ...all, [action.override.key]: action.override }))
           break
+        case 'requeueInvestigation': {
+          // A cached refusal on a hard signal stays hard: the fresh Sentinel can't clear it (FR-015)
+          // (`exists` is the one signal whose absence is the bad state, as in core/score/tier.ts)
+          const cached = (await $.store.get(action.verdictCacheKey)) as { value?: { signals?: { kind?: string; weight?: string; state?: string; evidence?: string }[] } } | undefined
+          const hard = (cached?.value?.signals ?? []).filter(s => s.weight === 'hard' && s.state === (s.kind === 'exists' ? 'absent' : 'present'))
+          const inv = hard.length
+            ? { ...action.investigation, hasHardSignal: true, reasons: [...action.investigation.reasons, ...hard.map(s => String(s.evidence))] }
+            : action.investigation
+          await $.store.delete(action.verdictCacheKey)
+          // A bare-name recheck also drops cached verdicts for every version of the package
+          const prefix = action.verdictCacheKey.replace(/@[^@]*$/, '@')
+          for (const k of await $.store.keys()) if (k.startsWith(prefix)) await $.store.delete(k)
+          await update($, investigations, all => ({ ...all, [inv.key]: inv }))
+          break
+        }
         case 'startDemo':
-          await $.ui.open({ id: PANE_ID, title: 'Omnis Watchtower — demo' })
+          await update($, demo, () => true)
+          await $.ui.open({ id: PANE_ID, title: 'Omnis Watchtower' })
           break
       }
     }

@@ -104,6 +104,7 @@ export const install = (on: On, ctx: Ctx): void => {
     const message = String(next.error?.message ?? 'unknown error').slice(0, 200)
     await update($, fault, () => ({ where: 'gate', message, at: now }))
     await update($, events, l => appendEvents(l, now, { type: 'Fault', where: 'gate', message }))
+    $.ui.toast(`⚠ ${FAULT_TEXT}; ${ctx.options.strict ? 'strict mode refused the command' : 'the command ran unchecked'}`)
     return ctx.options.strict ? { deny: `${FAULT_TEXT} (${message}); strict mode refuses the command.` } : next(e)
   })
 }

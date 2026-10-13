@@ -14,6 +14,8 @@ export type Snapshot = {
   investigations: Record<string, Investigation>
   sessionOverrides: Record<string, Override>
   permanentOverrides: Record<string, Override>
+  /** Overrides asked for from outside the person's prompt, waiting for a pane confirmation. */
+  pendingOverrides: Record<string, Override>
   ctx: Ctx
 }
 
@@ -22,6 +24,7 @@ export type Action =
   | { type: 'setTheme'; theme: WatchtowerTheme }
   | { type: 'putOverride'; override: Override }
   | { type: 'removeOverride'; key: string }
+  | { type: 'putPendingOverride'; override: Override }
   | { type: 'requeueInvestigation'; investigation: Investigation; verdictCacheKey: string }
   | { type: 'startDemo' }
 

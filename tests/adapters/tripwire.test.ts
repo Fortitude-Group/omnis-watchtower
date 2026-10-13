@@ -232,6 +232,16 @@ describe('cooldown pins (FR-035)', () => {
   })
 })
 
+test('a package the developer blocked is refused as "blocked by you" (US5-2)', async () => {
+  const { io } = setup({
+    session: { 'npm:chalk': { key: 'npm:chalk', action: 'block', scope: 'session', at: NOW, via: 'composer' } },
+  })
+  const out = await evaluate(io, 'npm install chalk', 'main', opts)
+  if (out.kind === 'not-install') throw new Error('expected a decision')
+  expect(out.kind).toBe('deny')
+  expect(out.text).toBe('WATCHTOWER REFUSED npm:chalk — blocked by you.\nRemove the block (human only): /watchtower overrides clear npm:chalk')
+})
+
 test('a Sentinel still running past its deadline counts as timed out on retry (FR-017)', async () => {
   const ref = { ecosystem: 'npm' as const, name: 'left-padx' }
   const { io } = setup({

@@ -16,6 +16,13 @@ export const refusedText = (c: PackageCheck): string =>
     `Override (human only): /watchtower allow ${c.ref.ecosystem}:${c.ref.name}`,
   ].join('\n')
 
+/** US5-2: a package the developer blocked. */
+export const blockedText = (ref: PackageRef): string =>
+  [
+    `WATCHTOWER REFUSED ${label(ref)} — blocked by you.`,
+    `Remove the block (human only): /watchtower overrides clear ${ref.ecosystem}:${ref.name}`,
+  ].join('\n')
+
 export const heldText = (c: PackageCheck): string =>
   [
     `WATCHTOWER HELD ${label(c.ref)} — the Sentinel is investigating.`,

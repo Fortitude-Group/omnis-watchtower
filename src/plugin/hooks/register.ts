@@ -5,6 +5,7 @@ import { readOptions } from './context'
 import { install as installFleet } from './fleet'
 import { install as installGate } from './gate'
 import { install as installPane } from './pane'
+import { install as installPress } from './press'
 import { install as installSentinel } from './sentinel'
 import { install as installSession } from './session'
 import { install as installStatus } from './status'
@@ -20,4 +21,5 @@ export const register: Register = (on, options) => {
   installPane(on, ctx)
   installStatus(on, ctx)
   installCommands(on, ctx)
+  installPress(on, ctx)
 }
