@@ -112,11 +112,11 @@ implemented, tested and demonstrated independently.
 
 ### Tests for User Story 1
 
-- [ ] T020 [P] [US1] `tests/core/parse/tokenize.test.ts`: single/double quotes, escapes, `&&` `||` `;` chains, env-var prefixes (`CI=1 npm i x`), `sudo`, line continuations, empty input (#20)
-- [ ] T021 [P] [US1] `tests/core/parse/npm.test.ts`: a table of npm/pnpm/yarn/bun `install|i|add` and `npx|pnpm dlx|bunx|yarn dlx` forms, `@scope/name`, `name@1.2.3`, `name@^1`, `-D/--save-dev/-g/--save-exact`, git/URL/file specs → unchecked, bare install → `source: 'lockfile-diff'` marker (#21)
-- [ ] T022 [P] [US1] `tests/core/parse/pypi.test.ts`: `pip|pip3|python -m pip|python3 -m pip install`, `uv add`, `uv pip install`, `poetry add`, `pipx install|run`, specifiers (`==`, `>=`, `~=`, `!=`), extras `name[cli]`, `-r file`, `-e .` / URLs / paths → unchecked, `--index-url`/`--extra-index-url` captured (#22)
-- [ ] T023 [P] [US1] `tests/core/parse/fuzz.test.ts`: 10,000 seeded random mutations of the table inputs. The parser never throws, and every token is accounted for (package or `unchecked`) (#23)
-- [ ] T024 [P] [US1] `tests/core/parse/lockfile-diff.test.ts`: `package.json` vs `package-lock.json` (v3), `pnpm-lock.yaml`, `yarn.lock` (v1 and berry), `bun.lock` (text); `pyproject.toml` vs `uv.lock` and `poetry.lock`. Only newly declared, unlocked dependencies are returned; a missing lockfile returns all declared deps (#24)
+- [X] T020 [P] [US1] `tests/core/parse/tokenize.test.ts`: single/double quotes, escapes, `&&` `||` `;` chains, env-var prefixes (`CI=1 npm i x`), `sudo`, line continuations, empty input (#20)
+- [X] T021 [P] [US1] `tests/core/parse/npm.test.ts`: a table of npm/pnpm/yarn/bun `install|i|add` and `npx|pnpm dlx|bunx|yarn dlx` forms, `@scope/name`, `name@1.2.3`, `name@^1`, `-D/--save-dev/-g/--save-exact`, git/URL/file specs → unchecked, bare install → `source: 'lockfile-diff'` marker (#21)
+- [X] T022 [P] [US1] `tests/core/parse/pypi.test.ts`: `pip|pip3|python -m pip|python3 -m pip install`, `uv add`, `uv pip install`, `poetry add`, `pipx install|run`, specifiers (`==`, `>=`, `~=`, `!=`), extras `name[cli]`, `-r file`, `-e .` / URLs / paths → unchecked, `--index-url`/`--extra-index-url` captured (#22)
+- [X] T023 [P] [US1] `tests/core/parse/fuzz.test.ts`: 10,000 seeded random mutations of the table inputs. The parser never throws, and every token is accounted for (package or `unchecked`) (#23)
+- [X] T024 [P] [US1] `tests/core/parse/lockfile-diff.test.ts`: `package.json` vs `package-lock.json` (v3), `pnpm-lock.yaml`, `yarn.lock` (v1 and berry), `bun.lock` (text); `pyproject.toml` vs `uv.lock` and `poetry.lock`. Only newly declared, unlocked dependencies are returned; a missing lockfile returns all declared deps (#24)
 - [X] T025 [P] [US1] `tests/core/score/malware.test.ts`: research R7 cases (`MAL-*` id; GHSA with `CWE-506`; summary "is malware"/"malicious code"; ordinary vulnerability GHSA → not malware; version filtering) (#25)
 - [X] T026 [P] [US1] `tests/core/score/typosquat.test.ts`: edit distance ≤ 2, transposition, homoglyphs (`rn`→`m`, `0`→`o`, `1`→`l`), separator variants (`py-yaml`, `py_yaml`), popular names never flag themselves, short names (≤ 3 chars) excluded, returns `imitates` (#26)
 - [X] T027 [P] [US1] `tests/core/score/signals.test.ts`: building each Signal from `PackageFacts` incl. `unknown` propagation, package age < 7 d, version age < 72 h, install scripts, sdist-only, low adoption (< 1,000/week), single maintainer only with low adoption (research R8: `chalk` facts must not flag), no repository (#27)
@@ -126,9 +126,9 @@ implemented, tested and demonstrated independently.
 
 ### Implementation for User Story 1
 
-- [ ] T031 [P] [US1] Implement `src/plugin/core/parse/tokenize.ts` (POSIX-ish word splitting and command-chain splitting) to pass T020 (#31)
-- [ ] T032 [P] [US1] Implement `src/plugin/core/parse/npm.ts` and `src/plugin/core/parse/pypi.ts` producing `InstallRequest` fragments, with `src/plugin/core/parse/index.ts` exposing `parseCommand(command, agentId, at): InstallRequest[]`, to pass T021–T023 (#32)
-- [ ] T033 [P] [US1] Implement `src/plugin/core/parse/requirements.ts` (requirements.txt: comments, `-r` nesting with a cycle guard, markers, hashes ignored) and `src/plugin/core/parse/lockfile-diff.ts` (no YAML/TOML library: targeted line parsers per format) to pass T022 and T024 (#33)
+- [X] T031 [P] [US1] Implement `src/plugin/core/parse/tokenize.ts` (POSIX-ish word splitting and command-chain splitting) to pass T020 (#31)
+- [X] T032 [P] [US1] Implement `src/plugin/core/parse/npm.ts` and `src/plugin/core/parse/pypi.ts` producing `InstallRequest` fragments, with `src/plugin/core/parse/index.ts` exposing `parseCommand(command, agentId, at): InstallRequest[]`, to pass T021–T023 (#32)
+- [X] T033 [P] [US1] Implement `src/plugin/core/parse/requirements.ts` (requirements.txt: comments, `-r` nesting with a cycle guard, markers, hashes ignored) and `src/plugin/core/parse/lockfile-diff.ts` (no YAML/TOML library: targeted line parsers per format) to pass T022 and T024 (#33)
 - [X] T034 [P] [US1] Implement `src/plugin/core/score/malware.ts`, `typosquat.ts` (Damerau-Levenshtein with early exit, homoglyph and separator normalisation, a length-bucketed index over the popular list) and `signals.ts` to pass T025–T027 (#34)
 - [X] T035 [US1] Implement `src/plugin/core/score/tier.ts` and `src/plugin/core/score/evidence.ts` (one line per signal, alternative selection from `imitates`) to pass T028 (#35)
 - [X] T036 [P] [US1] Write `scripts/build-popular-lists.mjs` and generate `src/plugin/core/data/popular-npm.ts` (top 5,000 from `npm-high-impact` ranked by the bulk downloads API, research R10), with a header comment recording source, licence (MIT) and generation date (#36)
