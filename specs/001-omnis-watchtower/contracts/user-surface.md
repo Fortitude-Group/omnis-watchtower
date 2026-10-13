@@ -15,7 +15,7 @@ contract (Principle II).
 | `/watchtower allow <pkg>[@ver] [--permanent]` | Override to allow | `origin.kind === 'composer'` or pane Button (research R1) |
 | `/watchtower block <pkg> [--permanent]` | Override to block | same |
 | `/watchtower overrides [clear <pkg>]` | List or remove overrides | clear: same rule |
-| `/watchtower recheck <pkg>[@ver]` | Drop cached verdict and re-investigate | any |
+| `/watchtower recheck <pkg>[@ver]` | Drop cached verdict and re-investigate | same as allow (it re-rolls the Sentinel; code review 2026-10-13) |
 
 `<pkg>` is written `npm:name` or `pypi:name`. A bare name is accepted when unambiguous in the
 current project (detected from the manifest), otherwise the command asks which ecosystem.

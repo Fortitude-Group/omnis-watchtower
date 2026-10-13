@@ -2,7 +2,7 @@ import { describe, expect, test } from 'vitest'
 import type { PackageRef, Signal, SignalKind, SignalState } from '../../../src/plugin/core/model'
 import { alternativeFor, evidenceLines } from '../../../src/plugin/core/score/evidence'
 import { WEIGHTS } from '../../../src/plugin/core/score/signals'
-import { decide, decideCommand, isAllowed, matchesAllowlist, scorePackage, tierFor, VERDICT_TTL_MS, type Cooldown } from '../../../src/plugin/core/score/tier'
+import { decide, decideCommand, isAllowed, scorePackage, tierFor, VERDICT_TTL_MS, type Cooldown } from '../../../src/plugin/core/score/tier'
 import { buildTyposquatIndex } from '../../../src/plugin/core/score/typosquat'
 import type { PackageFacts } from '../../../src/plugin/core/model'
 
@@ -53,15 +53,28 @@ describe('tierFor, rules in order', () => {
     expect(tierFor(base(s('dependencyConfusion', 'unknown')))).toBe('hold')
   })
 
-  test('3. registry unreachable → unverified', () => {
+  test('registry unreachable → unverified only when the malware check cleared it', () => {
     expect(tierFor(base(s('exists', 'unknown')))).toBe('unverified')
-    expect(tierFor(base(s('exists', 'unknown'), s('malware', 'unknown')))).toBe('unverified')
+    expect(tierFor(base(s('exists', 'unknown'), s('malware', 'unknown')))).toBe('hold')
   })
 
-  test('4. hard signals → refuse', () => {
+  test('registry unreachable never hides a hard signal (code review fix)', () => {
+    expect(tierFor(base(s('exists', 'unknown'), s('malware', 'present')))).toBe('refuse')
+    expect(tierFor(base(s('exists', 'unknown'), s('dependencyConfusion', 'present')))).toBe('refuse')
+    expect(tierFor(base(s('exists', 'unknown'), s('typosquat', 'present', 'lodash'), s('lowAdoption', 'unknown')))).toBe('refuse')
+  })
+
+  test('hard signals → refuse', () => {
     expect(tierFor(base(s('exists', 'absent')))).toBe('refuse')
     expect(tierFor(base(s('malware', 'present')))).toBe('refuse')
     expect(tierFor(base(s('dependencyConfusion', 'present')))).toBe('refuse')
+    expect(tierFor(base(s('commandLineRegistry', 'present')))).toBe('refuse')
+  })
+
+  test('a command-line registry refuses even a private or allowlisted name', () => {
+    expect(tierFor(base(s('privateRegistry', 'present'), s('commandLineRegistry', 'present')))).toBe('refuse')
+    expect(tierFor(base(s('commandLineRegistry', 'present')), undefined, true)).toBe('refuse')
+    expect(tierFor(base(s('commandLineRegistry', 'present')), { action: 'allow' })).toBe('pass')
   })
 
   test('5. typosquat with low or unknown adoption → refuse', () => {
@@ -158,16 +171,6 @@ describe('evidence', () => {
   })
 })
 
-describe('matchesAllowlist', () => {
-  test('comma-separated globs', () => {
-    expect(matchesAllowlist('@acme/ui', '@acme/*, acme-*')).toBe(true)
-    expect(matchesAllowlist('acme-tools', '@acme/*, acme-*')).toBe(true)
-    expect(matchesAllowlist('lodash', '@acme/*, acme-*')).toBe(false)
-    expect(matchesAllowlist('lodash', '')).toBe(false)
-    expect(matchesAllowlist('a.b', ['a.b'])).toBe(true)
-    expect(matchesAllowlist('axb', ['a.b'])).toBe(false)
-  })
-})
 
 describe('6a. cooldown pin (FR-035)', () => {
   const fresh = (...over: Signal[]) => base(s('versionAge', 'present'), ...over)

@@ -52,16 +52,17 @@ const validate = (value: unknown): ParsedVerdict => {
   const e = o.evidence
   if (!Array.isArray(e)) return { ok: false, reason: 'evidence must be an array' }
   if (e.length < 1) return { ok: false, reason: 'evidence must not be empty' }
-  if (e.length > MAX_ITEMS) return { ok: false, reason: `evidence has more than ${MAX_ITEMS} items` }
   for (const line of e) {
     if (typeof line !== 'string' || line.length < 1) return { ok: false, reason: 'evidence items must be non-empty strings' }
-    if (line.length > MAX_LEN) return { ok: false, reason: `evidence item longer than ${MAX_LEN} characters` }
   }
+  // Too many or too long is chatty, not malformed: trim rather than throw a sound verdict away.
+  // 4 of 20 live runs (2026-10-13) failed on a single evidence line over 200 characters.
+  const evidence = (e as string[]).slice(0, MAX_ITEMS).map(line => (line.length > MAX_LEN ? `${line.slice(0, MAX_LEN - 1)}…` : line))
   const inv = o.investigation
   if (inv !== undefined && (typeof inv !== 'string' || inv.length < 1 || inv.length > 64)) {
     return { ok: false, reason: 'investigation must be a short string' }
   }
-  return { ok: true, verdict: { verdict: o.verdict, confidence: c, evidence: e as string[] }, ...(inv ? { investigation: inv } : {}) }
+  return { ok: true, verdict: { verdict: o.verdict, confidence: c, evidence }, ...(inv ? { investigation: inv } : {}) }
 }
 
 export const parseVerdict = (answer: string): ParsedVerdict => {

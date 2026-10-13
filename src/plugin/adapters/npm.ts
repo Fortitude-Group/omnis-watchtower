@@ -1,13 +1,22 @@
 import type { PackageRef } from '../core/model'
+import { INSTALL_SCRIPTS } from '../core/score/signals'
 import { cacheGet, cacheSet, TTL } from './cache'
 import type { PartialFacts } from './facts'
 import { fetchJson } from './http'
 import type { SourceIo } from './ports'
 
-// `prepare` also runs on git installs, but not for registry tarballs, so it is left out
-export const INSTALL_SCRIPTS = ['preinstall', 'install', 'postinstall'] as const
+export { INSTALL_SCRIPTS }
 
 const NS = 'npm'
+
+// A pointer such as `latest` or `next` moves with every release, so its answer is kept briefly:
+// a release published inside the window must still meet the version-age hold and cooldown pin
+export const LATEST_TTL_MS = 10 * 60 * 1000
+
+const EXACT_SEMVER = /^v?\d+\.\d+\.\d+(?:[-+][0-9A-Za-z.+-]*)?$/
+
+/** True for an exact version; a dist-tag, range or no version follows a moving pointer. */
+export const isExactNpmVersion = (version: string | undefined): boolean => !!version && EXACT_SEMVER.test(version)
 
 const isRecord = (v: unknown): v is Record<string, unknown> =>
   typeof v === 'object' && v !== null && !Array.isArray(v)
@@ -57,6 +66,8 @@ export const fetchNpmManifest = async (io: SourceIo, ref: PackageRef): Promise<P
   const res = await fetchJson(io, npmManifestUrl(ref))
   const facts = res.ok ? parseNpmManifest(res.json) : res.status === 404 ? npmNotFound(ref) : undefined
   if (!facts) return npmUnknown()
-  await cacheSet(io, NS, id, facts, res.ok ? TTL.metadata : TTL.notFound).catch(() => {})
+  // A cached 404 only ever refuses, so it keeps the long TTL
+  const ttl = !res.ok ? TTL.notFound : isExactNpmVersion(ref.version) ? TTL.metadata : LATEST_TTL_MS
+  await cacheSet(io, NS, id, facts, ttl).catch(() => {})
   return facts
 }

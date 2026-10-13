@@ -31,7 +31,9 @@ export const matchTurn = (all: Record<string, Investigation>, turn: SentinelTurn
   }
   const parsed = turn.reason === 'answer' ? parseVerdict(turn.answer) : undefined
   const token = parsed?.ok ? parsed.investigation : undefined
-  return token ? active.find(i => i.token === token) : undefined
+  // Only an investigation with no agent id of its own can be claimed by token: otherwise any
+  // subagent could conclude it by quoting the id (code review, 2026-10-13)
+  return token ? active.find(i => i.token === token && !i.agentId) : undefined
 }
 
 /** The investigation after this turn, and what to show. An "allow" never clears a hard signal. */

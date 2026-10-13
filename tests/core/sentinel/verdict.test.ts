@@ -23,6 +23,15 @@ describe('parseVerdict', () => {
     expect(parseVerdict(`note {"x":1} then ${json(good)}`).ok).toBe(true)
   })
 
+  it('trims chatty evidence instead of rejecting a sound verdict (live runs, 2026-10-13)', () => {
+    const long = parseVerdict(json({ ...good, evidence: ['x'.repeat(450)] }))
+    expect(long.ok).toBe(true)
+    if (long.ok) expect(long.verdict.evidence[0]).toHaveLength(200)
+    const many = parseVerdict(json({ ...good, evidence: Array.from({ length: 12 }, (_, i) => `line ${i}`) }))
+    expect(many.ok).toBe(true)
+    if (many.ok) expect(many.verdict.evidence).toHaveLength(8)
+  })
+
   it('accepts the boundaries: confidence 0 and 1, 8 items, 200 chars', () => {
     expect(parseVerdict(json({ ...good, confidence: 0 })).ok).toBe(true)
     expect(parseVerdict(json({ ...good, confidence: 1 })).ok).toBe(true)
@@ -36,9 +45,7 @@ describe('parseVerdict', () => {
     ['confidence below 0', { ...good, confidence: -0.1 }],
     ['confidence as string', { ...good, confidence: '0.5' }],
     ['empty evidence', { ...good, evidence: [] }],
-    ['more than 8 items', { ...good, evidence: Array(9).fill('x') }],
     ['empty evidence line', { ...good, evidence: [''] }],
-    ['evidence line over 200', { ...good, evidence: ['x'.repeat(201)] }],
     ['non-string evidence', { ...good, evidence: [3] }],
     ['unknown verdict', { ...good, verdict: 'maybe' }],
     ['missing verdict', { confidence: 0.5, evidence: ['x'] }]

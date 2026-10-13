@@ -86,6 +86,9 @@ const overrides = (args: string[], snap: Snapshot): Reply => {
 
 const recheck = (args: string[], snap: Snapshot): Reply => {
   if (args.length !== 1) return { text: 'Usage: /watchtower recheck <eco:pkg>[@ver]' }
+  // Human only too: a recheck re-rolls the Sentinel, so an agent could keep asking until an
+  // investigation said "allow" and get round the human-only override rule (code review, 2026-10-13)
+  if (snap.origin !== 'composer') return { text: `${notHuman('recheck', snap)}\nType it at your prompt yourself to investigate again.` }
   const parsed = resolve(args[0]!, snap)
   if (!parsed.ok) return { text: `Cannot recheck ${args[0]}: ${parsed.message}.` }
   const ref = { ecosystem: parsed.ecosystem, name: parsed.name, ...(parsed.version ? { version: parsed.version } : {}) }

@@ -1,8 +1,9 @@
 import type { PackageRef, VersionInfo } from '../core/model'
 import { cacheGet, cacheSet, TTL } from './cache'
+
 import type { PartialFacts } from './facts'
 import { fetchJson } from './http'
-import { encodeNpmName } from './npm'
+import { encodeNpmName, LATEST_TTL_MS } from './npm'
 import type { SourceIo } from './ports'
 
 const NS = 'depsdev'
@@ -41,6 +42,9 @@ export const fetchDepsDev = async (io: SourceIo, ref: PackageRef): Promise<Parti
   const res = await fetchJson(io, depsDevUrl(ref.name))
   const facts = res.ok ? parseDepsDev(res.json, ref) : res.status === 404 ? { ...depsDevUnknown(), exists: false } : undefined
   if (!facts) return depsDevUnknown()
-  await cacheSet(io, NS, id, facts, res.ok ? TTL.metadata : TTL.notFound).catch(() => {})
+  // The version list is how a fresh release is spotted, so an unversioned lookup is only trusted
+  // for as long as the latest pointer is; a 6 h list could hide a release published since
+  const ttl = res.ok ? (ref.version ? TTL.metadata : LATEST_TTL_MS) : TTL.notFound
+  await cacheSet(io, NS, id, facts, ttl).catch(() => {})
   return facts
 }

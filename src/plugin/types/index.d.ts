@@ -80,6 +80,8 @@ export type SessionTotals = {
   tokens: TokenUsage
   estCostUsd: number
   unpricedTokens: number
+  /** The highest event seq already counted, so concurrent writers never count an event twice. */
+  seq: number
 }
 
 declare module 'claude-code' {

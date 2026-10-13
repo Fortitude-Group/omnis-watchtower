@@ -5,9 +5,9 @@ import {
   fetchNpmDownloads, fetchNpmDownloadsBulk, fetchPypiDownloads, npmDownloadsUrl, pypiStatsUrl,
 } from '../../src/plugin/adapters/downloads'
 import { resetLimiter } from '../../src/plugin/adapters/http'
-import { fetchNpmManifest, npmManifestUrl } from '../../src/plugin/adapters/npm'
+import { fetchNpmManifest, isExactNpmVersion, LATEST_TTL_MS, npmManifestUrl } from '../../src/plugin/adapters/npm'
 import { fetchOsv, osvQuery } from '../../src/plugin/adapters/osv'
-import { fetchPypi, parsePypi, pypiRepository } from '../../src/plugin/adapters/pypi'
+import { fetchPypi, isExactPypiVersion, LATEST_TTL_MS as PYPI_LATEST_TTL_MS, parsePypi, pypiRepository } from '../../src/plugin/adapters/pypi'
 import { allFixtures } from '../fixtures/http'
 import { fixtureIo } from './fixture-io'
 
@@ -71,15 +71,44 @@ describe('npm registry', () => {
     expect(data.size).toBe(0)
   })
 
-  it('reuses a cached answer until it expires', async () => {
-    const { io, calls, advance } = fixtureIo()
+  it('reuses a cached latest answer for at most ten minutes', async () => {
+    const { io, calls, advance, data } = fixtureIo()
     const ref = { ecosystem: 'npm' as const, name: 'chalk' }
     await fetchNpmManifest(io, ref)
     await fetchNpmManifest(io, ref)
     expect(calls).toHaveLength(1)
-    advance(TTL.metadata)
+    expect(LATEST_TTL_MS).toBe(10 * 60 * 1000)
+    expect(data.get('wt:npm:chalk@latest')).toMatchObject({ expiresAt: 1_000_000 + LATEST_TTL_MS })
+    advance(LATEST_TTL_MS)
     await fetchNpmManifest(io, ref)
     expect(calls).toHaveLength(2)
+  })
+
+  it('keeps an exact version for the metadata TTL, and a dist-tag only briefly', async () => {
+    const manifest = allFixtures['GET https://registry.npmjs.org/chalk/latest']!
+    const { io, data } = fixtureIo({
+      'GET https://registry.npmjs.org/chalk/6.0.1': manifest,
+      'GET https://registry.npmjs.org/chalk/next': manifest,
+    })
+    await fetchNpmManifest(io, { ecosystem: 'npm', name: 'chalk', version: '6.0.1' })
+    await fetchNpmManifest(io, { ecosystem: 'npm', name: 'chalk', version: 'next' })
+    expect(data.get('wt:npm:chalk@6.0.1')).toMatchObject({ expiresAt: 1_000_000 + TTL.metadata })
+    expect(data.get('wt:npm:chalk@next')).toMatchObject({ expiresAt: 1_000_000 + LATEST_TTL_MS })
+  })
+
+  it('treats ranges and tags as moving pointers', () => {
+    expect(isExactNpmVersion('5.3.0')).toBe(true)
+    expect(isExactNpmVersion('1.0.0-beta.1')).toBe(true)
+    expect(isExactNpmVersion('^5')).toBe(false)
+    expect(isExactNpmVersion('next')).toBe(false)
+    expect(isExactNpmVersion(undefined)).toBe(false)
+  })
+
+  // Verified live 2026-10-13: registry.npmjs.org/chalk/%5E5 → 404 "version not found: ^5", and
+  // /chalk/%3E%3D5 → 405. The registry resolves exact versions and dist-tags, never ranges.
+  it('leaves the version unknown for a range the registry will not resolve', async () => {
+    const { io } = fixtureIo({ 'GET https://registry.npmjs.org/chalk/%5E5': { status: 404, body: 'version not found: ^5' } })
+    expect(await fetchNpmManifest(io, { ecosystem: 'npm', name: 'chalk', version: '^5' })).toMatchObject({ exists: 'unknown', resolvedVersion: 'unknown' })
   })
 })
 
@@ -185,6 +214,32 @@ describe('PyPI', () => {
     }
     expect(parsePypi(json, { ecosystem: 'pypi', name: 'x' })).toMatchObject({ sdistOnly: true, repository: null })
     expect(parsePypi(json, { ecosystem: 'pypi', name: 'x', version: '0.9' })).toMatchObject({ resolvedVersion: '0.9', sdistOnly: 'unknown' })
+  })
+
+  it('resolves only an exact pin; any other specifier leaves the version unknown', () => {
+    const json = { info: { name: 'x', version: '2.1.0', project_urls: null }, releases: { '2.1.0': [], '1.83.0': [] } }
+    const at = (version?: string) => parsePypi(json, version === undefined ? { ecosystem: 'pypi', name: 'x' } : { ecosystem: 'pypi', name: 'x', version }).resolvedVersion
+    expect(at()).toBe('2.1.0')
+    expect(at('1.83.0')).toBe('1.83.0')
+    expect(at('2.0rc1')).toBe('2.0rc1')
+    expect(at('>=1.82')).toBe('unknown')
+    expect(at('~=2.0')).toBe('unknown')
+    expect(at('<2')).toBe('unknown')
+    expect(at('1.*')).toBe('unknown')
+    expect(at('!=1.0')).toBe('unknown')
+  })
+
+  it('accepts PEP 440 exact versions', () => {
+    for (const v of ['1.0', '2.0.0', '1!2.0', '1.0a1', '1.0.post1', '1.0.dev3', '1.0+local.7']) expect(isExactPypiVersion(v)).toBe(true)
+    for (const v of ['>=1', '~=2.0', '1.*', '==1.0', 'latest']) expect(isExactPypiVersion(v)).toBe(false)
+  })
+
+  it('keeps the unversioned answer for at most ten minutes, an exact version for the metadata TTL', async () => {
+    const { io, data } = fixtureIo()
+    await fetchPypi(io, { ecosystem: 'pypi', name: 'requests' })
+    await fetchPypi(io, { ecosystem: 'pypi', name: 'requests', version: '2.34.2' })
+    expect(data.get('wt:pypi:requests@latest')).toMatchObject({ expiresAt: 1_000_000 + PYPI_LATEST_TTL_MS })
+    expect(data.get('wt:pypi:requests@2.34.2')).toMatchObject({ expiresAt: 1_000_000 + TTL.metadata })
   })
 
   it('finds the repository among the project URLs', () => {

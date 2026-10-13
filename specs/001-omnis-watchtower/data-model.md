@@ -83,10 +83,16 @@ Tier function (pure, in `core/`), applied in order:
    **except** dependency confusion: if the public registry also serves the name → `refuse`; if
    that check failed (unknown) → `hold` (US1-6, FR-009; corrected 2026-10-13, the earlier wording
    would have passed every shadowed private name).
-3. Registry unreachable for `exists` → `unverified` (allowed, flagged).
-4. Any **hard** signal present (`exists` absent, `malware`, `dependencyConfusion`) → `refuse`.
-5. `typosquat` present AND (`lowAdoption` present or unknown) → `refuse`.
-6. `malware` unknown → `hold` (FR-009: cannot pass).
+   A registry or index named on the command line (`commandLineRegistry`) gives no such cover:
+   it is checked before this rule and refuses.
+3. Any **hard** signal present (`exists` absent, `malware`, `dependencyConfusion`,
+   `commandLineRegistry`) → `refuse`.
+4. `typosquat` present AND (`lowAdoption` present or unknown) → `refuse`.
+5. Registry unreachable for `exists` → `hold` if `malware` is also unknown (FR-009: it cannot be
+   cleared without the malware check), otherwise `unverified` (allowed, flagged). Corrected
+   2026-10-13 after code review: this rule used to come before the hard signals, so a package OSV
+   flags as malware passed as `unverified` whenever the registry lookup failed.
+6. `malware` unknown, or the dependency-confusion check unknown → `hold` (FR-009: cannot pass).
 6a. Cooldown pin (FR-035): the package is on the popular list, no version was requested, the
     only present strong signal is `versionAge`, no weak signals are present, and a release at
     least 72 h old exists → `pass` with `pinnedTo` that release (`decidedBy: 'cooldown'`).

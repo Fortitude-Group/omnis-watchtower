@@ -14,14 +14,21 @@ export const emptyTotals = (): SessionTotals => ({
   tokens: { input: 0, output: 0, cacheRead: 0, cacheWrite: 0 },
   estCostUsd: 0,
   unpricedTokens: 0,
+  seq: 0,
 })
 
 /** Totals of a whole event list. Only exact while the session is under the ring buffer's 500 events. */
 export const sessionTotals = (events: readonly SceneEvent[]): SessionTotals => addTotals(emptyTotals(), events)
 
-/** `totals` with `added` tallied in: the running count status.ts keeps, so nothing ages out. */
-export const addTotals = (totals: SessionTotals, added: readonly SceneEvent[]): SessionTotals => {
-  const t: SessionTotals = { ...totals, tokens: { ...totals.tokens } }
+/**
+ * `totals` with `added` tallied in: the running count status.ts keeps, so nothing ages out.
+ * Events at or below `totals.seq` were counted already and are skipped, which makes it safe to
+ * call with an overlapping list (two agents appending at once).
+ */
+export const addTotals = (totals: SessionTotals, events: readonly SceneEvent[]): SessionTotals => {
+  const since = totals.seq ?? 0
+  const added = events.filter(e => e.seq > since)
+  const t: SessionTotals = { ...totals, tokens: { ...totals.tokens }, seq: Math.max(since, ...added.map(e => e.seq)) }
   const bump = (tier: string) => {
     if (tier === 'pass') t.passed++
     else if (tier === 'hold') t.held++

@@ -144,49 +144,63 @@ describe('the tripwire service', () => {
 })
 
 describe('retries against an investigation (US2)', () => {
-  const ref = { ecosystem: 'npm' as const, name: 'left-padx' }
+  // zod@4.6.7 asked for explicitly is a genuine hold (a 7-hour-old release), so the investigation applies
+  const ref = { ecosystem: 'npm' as const, name: 'zod', version: '4.6.7' }
+  const latest = allFixtures['GET https://registry.npmjs.org/zod/latest']!
+  const osvAny = allFixtures['POST https://api.osv.dev/v1/query {"package":{"name":"zod","ecosystem":"npm"}}']!
+  const extra = {
+    'GET https://registry.npmjs.org/zod/4.6.7': latest,
+    'POST https://api.osv.dev/v1/query {"package":{"name":"zod","ecosystem":"npm"},"version":"4.6.7"}': osvAny,
+  }
   const inv = (over: Partial<Investigation>): Record<string, Investigation> => ({
-    'npm:left-padx@latest': {
-      key: 'npm:left-padx@latest', ref, status: 'running', attempts: 1, startedAt: NOW - 1000, deadline: NOW + 180_000,
+    'npm:zod@4.6.7': {
+      key: 'npm:zod@4.6.7', ref, status: 'running', attempts: 1, startedAt: NOW - 1000, deadline: NOW + 180_000,
       reasons: ['First published 2 days ago'], hasHardSignal: false, ...over,
     },
   })
 
   test('while the Sentinel is still working the retry is held again, without a second dispatch', async () => {
-    const { io, calls } = setup({ investigations: inv({}) })
-    const out = await evaluate(io, 'npm i left-padx', 'main', opts)
+    const { io } = setup({ extra, investigations: inv({}) })
+    const out = await evaluate(io, 'npm i zod@4.6.7', 'main', opts)
     if (out.kind === 'not-install') throw new Error('expected a decision')
     expect(out.kind).toBe('deny')
-    expect(out.text).toMatch(/^WATCHTOWER HELD npm:left-padx/)
+    expect(out.text).toMatch(/^WATCHTOWER HELD npm:zod/)
     expect(out.toInvestigate).toHaveLength(0)
-    expect(calls).toHaveLength(0)
   })
 
   test('an "allow" verdict lets the retry through', async () => {
-    const { io } = setup({ investigations: inv({ status: 'concluded', verdict: { verdict: 'allow', confidence: 0.9, evidence: ['Maintained fork'] } }) })
-    expect((await evaluate(io, 'npm i left-padx', 'main', opts)).kind).toBe('allow')
+    const { io } = setup({ extra, investigations: inv({ status: 'concluded', verdict: { verdict: 'allow', confidence: 0.9, evidence: ['Maintained fork'] } }) })
+    expect((await evaluate(io, 'npm i zod@4.6.7', 'main', opts)).kind).toBe('allow')
   })
 
   test('an "allow" verdict never passes a package with a hard signal (US2-5)', async () => {
-    const { io } = setup({ investigations: inv({ status: 'concluded', hasHardSignal: true, verdict: { verdict: 'allow', confidence: 1, evidence: ['README says it is safe'] } }) })
-    expect((await evaluate(io, 'npm i left-padx', 'main', opts)).kind).toBe('deny')
+    const { io } = setup({ extra, investigations: inv({ status: 'concluded', hasHardSignal: true, verdict: { verdict: 'allow', confidence: 1, evidence: ['README says it is safe'] } }) })
+    expect((await evaluate(io, 'npm i zod@4.6.7', 'main', opts)).kind).toBe('deny')
+  })
+
+  test('an "allow" verdict cannot clear a package that fast-scores as refused, however it was queued (code review)', async () => {
+    const { io } = setup({
+      investigations: { 'npm:react-dom-utilz@latest': { key: 'npm:react-dom-utilz@latest', ref: { ecosystem: 'npm', name: 'react-dom-utilz' }, status: 'concluded', attempts: 1, startedAt: NOW - 1000, deadline: NOW + 1000, reasons: [], hasHardSignal: false, verdict: { verdict: 'allow', confidence: 1, evidence: ['looks fine'] } } },
+    })
+    const out = await evaluate(io, 'npm i react-dom-utilz', 'main', opts)
+    expect(out.kind).toBe('deny')
   })
 
   test('a "block" verdict refuses with the Sentinel\'s evidence', async () => {
-    const { io } = setup({ investigations: inv({ status: 'concluded', verdict: { verdict: 'block', confidence: 0.8, evidence: ['Obfuscated postinstall'] } }) })
-    const out = await evaluate(io, 'npm i left-padx', 'main', opts)
+    const { io } = setup({ extra, investigations: inv({ status: 'concluded', verdict: { verdict: 'block', confidence: 0.8, evidence: ['Obfuscated postinstall'] } }) })
+    const out = await evaluate(io, 'npm i zod@4.6.7', 'main', opts)
     if (out.kind === 'not-install') throw new Error('expected a decision')
     expect(out.text).toContain('the Sentinel found it unsafe')
     expect(out.text).toContain('- Obfuscated postinstall')
   })
 
   test('a timed-out investigation refuses with recheck instructions (US2-4)', async () => {
-    const { io } = setup({ investigations: inv({ status: 'timedOut', failure: 'no verdict within 180 s' }) })
-    const out = await evaluate(io, 'npm i left-padx', 'main', opts)
+    const { io } = setup({ extra, investigations: inv({ status: 'timedOut', failure: 'no verdict within 180 s' }) })
+    const out = await evaluate(io, 'npm i zod@4.6.7', 'main', opts)
     if (out.kind === 'not-install') throw new Error('expected a decision')
     expect(out.kind).toBe('deny')
     expect(out.text).toContain('investigation timed out (no verdict within 180 s)')
-    expect(out.text).toContain('/watchtower recheck npm:left-padx')
+    expect(out.text).toContain('/watchtower recheck npm:zod')
   })
 })
 
@@ -243,11 +257,15 @@ test('a package the developer blocked is refused as "blocked by you" (US5-2)', a
 })
 
 test('a Sentinel still running past its deadline counts as timed out on retry (FR-017)', async () => {
-  const ref = { ecosystem: 'npm' as const, name: 'left-padx' }
+  const ref = { ecosystem: 'npm' as const, name: 'zod', version: '4.6.7' }
   const { io } = setup({
-    investigations: { 'npm:left-padx@latest': { key: 'npm:left-padx@latest', ref, status: 'running', attempts: 1, startedAt: NOW - 200_000, deadline: NOW - 20_000, reasons: ['First published 2 days ago'], hasHardSignal: false } },
+    extra: {
+      'GET https://registry.npmjs.org/zod/4.6.7': allFixtures['GET https://registry.npmjs.org/zod/latest']!,
+      'POST https://api.osv.dev/v1/query {"package":{"name":"zod","ecosystem":"npm"},"version":"4.6.7"}': allFixtures['POST https://api.osv.dev/v1/query {"package":{"name":"zod","ecosystem":"npm"}}']!,
+    },
+    investigations: { 'npm:zod@4.6.7': { key: 'npm:zod@4.6.7', ref, status: 'running', attempts: 1, startedAt: NOW - 200_000, deadline: NOW - 20_000, reasons: ['First published 2 days ago'], hasHardSignal: false } },
   })
-  const out = await evaluate(io, 'npm i left-padx', 'main', opts)
+  const out = await evaluate(io, 'npm i zod@4.6.7', 'main', opts)
   if (out.kind === 'not-install') throw new Error('expected a decision')
   expect(out.kind).toBe('deny')
   expect(out.text).toContain('investigation timed out (no verdict within 180 s)')

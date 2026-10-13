@@ -61,10 +61,12 @@ or let it dock itself when your terminal is at least 144 columns wide.
 | `/watchtower allow <eco:pkg>[@ver] [--permanent]` | Let a refused package through. **Human only** |
 | `/watchtower block <eco:pkg> [--permanent]` | Always refuse a package. **Human only** |
 | `/watchtower overrides [clear <eco:pkg>]` | List or remove overrides |
-| `/watchtower recheck <eco:pkg>[@ver]` | Forget the cached verdict and investigate again |
+| `/watchtower recheck <eco:pkg>[@ver]` | Forget the cached verdict and investigate again. **Human only** |
 
-`allow` and `block` only count when you type them at the prompt. If an agent tries, the request
-is parked and a Confirm button appears in the pane, so a blocked agent can't unblock itself.
+`allow`, `block` and `recheck` only count when you type them at the prompt, so a blocked agent
+can't unblock itself. If an agent asks for an `allow` or `block`, the request is parked and a
+Confirm button appears in the pane. An agent's `recheck` is simply refused, because rerunning
+the Sentinel until it says yes would be a way round the rule.
 
 ## Settings
 
@@ -79,7 +81,7 @@ Change these in Claude Code's plugin config menu.
 | `reducedMotion` | off | Static effects, at most 4 frames a second |
 | `sentinelModel` | `haiku` | or `sonnet` |
 | `sentinelTimeoutSec` | `180` | How long a held package waits for a verdict before it's refused (60 to 900) |
-| `privateAllowlist` | (empty) | Comma-separated globs for private packages, e.g. `@acme/*, acme-*` |
+| `privateAllowlist` | (empty) | Comma-separated globs for private packages, e.g. `@acme/*, acme-*`. Internal packages served through a company mirror without their own scope belong here: Watchtower can't tell an internal name from one an agent invented, so otherwise it refuses them |
 
 ## Privacy
 

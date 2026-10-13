@@ -86,13 +86,15 @@ describe('gatherFacts', () => {
     expect(calls).toEqual(['GET https://pypi.org/pypi/ctx/json'])
   })
 
-  it('behind a mirror, checks publicly and treats a name the public lacks as private', async () => {
+  it('behind a mirror, checks publicly and fails closed on a name the public lacks (code review)', async () => {
     const { io } = fixtureIo()
     const config = emptyConfig()
     config.npm.registry = 'https://proxy.acme.internal/'
     const [known, missing] = await gatherFacts(io, [{ ecosystem: 'npm', name: 'crossenv' }, { ecosystem: 'npm', name: 'react-dom-utilz' }], config)
     expect(known).toMatchObject({ exists: true, weeklyDownloads: 1780 })
     expect(known!.privateRegistry).toBeUndefined()
-    expect(missing).toEqual({ ...unknownFacts({ ecosystem: 'npm', name: 'react-dom-utilz' }), privateRegistry: 'https://proxy.acme.internal/' })
+    // Internal or invented, Watchtower can't tell: reported as nonexistent (internal names go in privateAllowlist)
+    expect(missing).toMatchObject({ exists: false })
+    expect(missing!.privateRegistry).toBeUndefined()
   })
 })

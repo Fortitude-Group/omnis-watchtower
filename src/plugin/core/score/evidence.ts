@@ -39,6 +39,9 @@ export const evidence = {
         ? 'Does not shadow a private package'
         : `Could not check whether the public registry also serves the private name ${name}`,
 
+  commandLineRegistry: (url: string): string =>
+    `Installs from a registry named on the command line (${url}) that Watchtower can't vet; add it to .npmrc/pip.conf if it's yours`,
+
   cooldownPin: (latest: string, pinned: string): string =>
     `Latest release ${latest} is under 72 hours old; pinned to ${pinned}`,
 

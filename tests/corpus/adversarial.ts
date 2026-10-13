@@ -59,6 +59,13 @@ export const loadAdversarial = async (): Promise<CorpusEntry[]> => {
       expect: 'hold',
     },
     { label: 'malware database unreachable', facts: synthetic('plain-utility-lib', { osv: 'unknown' }), expect: 'hold' },
+    { label: 'crossenv while the registry lookup fails: malware still refuses', facts: { ...crossenv!, exists: 'unknown' }, expect: 'refuse' },
+    { label: 'registry and malware database both unreachable', facts: synthetic('quiet-lib', { exists: 'unknown', osv: 'unknown' }), expect: 'hold' },
+    {
+      label: 'popular package from a registry named on the command line',
+      facts: { ...synthetic('chalk', {}), commandLineRegistry: 'https://attacker.example' },
+      expect: 'refuse',
+    },
     {
       label: 'npm typosquat of lodash with low adoption',
       facts: synthetic('lodahs', { weeklyDownloads: 14, maintainerCount: 1, repository: null }),

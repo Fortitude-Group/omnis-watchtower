@@ -95,3 +95,13 @@ describe('running totals (Principle XII: counts never shrink when the ring buffe
     expect(sessionTotals(all.slice(-500)).intercepts).toBe(250)
   })
 })
+
+test('an overlapping event list is never counted twice (two agents appending at once)', async () => {
+  const { addTotals, emptyTotals } = await import('../../../src/plugin/core/text/status-line')
+  const ref = { ecosystem: 'npm' as const, name: 'x' }
+  const ev = (seq: number) => ({ type: 'PackageIntercepted' as const, requestId: `r${seq}`, agentId: 'main', ref, at: seq, seq })
+  const afterA = addTotals(emptyTotals(), [ev(1), ev(2)])
+  const afterB = addTotals(afterA, [ev(1), ev(2), ev(3)])
+  expect(afterB.intercepts).toBe(3)
+  expect(afterB.seq).toBe(3)
+})

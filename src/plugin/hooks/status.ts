@@ -31,11 +31,16 @@ export const install = (on: On, ctx: Ctx): void => {
     if (!wasSet(r)) return r
     const now = e.key === 'events' ? (e.value as SceneEvent[]) : await read($, events)
     const faulted = e.key === 'fault' ? e.value !== null && e.value !== undefined : (await read($, fault)) !== null
-    // Tally only the newly appended events into the running totals, so nothing ages out of the
-    // count when the ring buffer drops old events (Principle XII: a count must not silently shrink)
-    const lastSeq = before?.at(-1)?.seq ?? 0
-    const added = before ? now.filter(ev => ev.seq > lastSeq) : []
-    const current = added.length ? await update($, totals, t => addTotals(t, added)) : await read($, totals)
+    // Tally new events into the running totals, so nothing ages out of the count when the ring
+    // buffer drops old events (Principle XII). The tally runs inside the atomic update and skips
+    // events at or below the totals' own seq, so overlapping writers never count one twice.
+    let added: SceneEvent[] = []
+    const current = e.key === 'events'
+      ? await update($, totals, t => {
+          added = now.filter(ev => ev.seq > (t.seq ?? 0))
+          return addTotals(t, added)
+        })
+      : await read($, totals)
     await $.ui.status(statusLine(current, faulted))
     if (added.length && !(await read($, demo))) {
       for (const text of toastsFor(before ?? [], added, ctx.options.mode)) await $.ui.toast(text)

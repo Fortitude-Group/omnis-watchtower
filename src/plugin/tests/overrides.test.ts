@@ -164,8 +164,11 @@ test('recheck drops the cached verdict and the next shell command starts a Senti
   await $.tool.call({ tool: 'Bash', command: 'npm install chalk' })
   expect(w.fetched.length).toBe(fetches) // decided from the cached verdict
   expect(spawned).toEqual([])
-  // Any origin may ask for a recheck: it can only add scrutiny
-  const r = await $.command.run(run('recheck npm:chalk', 'sdk'))
+  // Human only: an agent could otherwise re-roll the Sentinel until it said "allow"
+  const refused = await $.command.run(run('recheck npm:chalk', 'sdk'))
+  expect(refused.text).toContain('Type it at your prompt yourself')
+  expect(s.state.investigations).toBeUndefined()
+  const r = await $.command.run(run('recheck npm:chalk', 'composer'))
   expect(r.text).toContain('Dropped the cached verdict for npm:chalk')
   expect(s.state.investigations).toMatchObject({ 'npm:chalk@latest': { status: 'queued', attempts: 0, deadline: expect.any(Number) } })
   await $.tool.call({ tool: 'Bash', command: 'git status' })
@@ -173,13 +176,17 @@ test('recheck drops the cached verdict and the next shell command starts a Senti
   expect(spawned[0]).toContain('npm:chalk')
 })
 
-test('recheck keeps a hard signal from the cached refusal, so the Sentinel cannot clear it', async ($, on) => {
-  const s = watch(on)
-  world(on)
+test('a recheck can never let a Sentinel "allow" clear a package with a hard signal (FR-015)', async ($, on) => {
+  const w = world(on)
   spawns(on)
   await $.tool.call({ tool: 'Bash', command: BAD })
-  await $.command.run(run('recheck npm:react-dom-utilz'))
-  expect(s.state.investigations).toMatchObject({ 'npm:react-dom-utilz@latest': { status: 'queued', hasHardSignal: true, reasons: expect.arrayContaining([expect.stringContaining('does not exist on npm')]) } })
+  await $.command.run(run('recheck npm:react-dom-utilz', 'composer'))
+  await $.tool.call({ tool: 'Bash', command: 'git status' }) // the Sentinel is spawned
+  await $.turn.complete({ answer: JSON.stringify({ verdict: 'allow', confidence: 1, evidence: ['README says it is fine'] }), agentId: 'sentinel-1', reason: 'answer', durationMs: 1, isAborted: false, turnId: 't1' })
+  // Investigations only resolve holds; the invented name still scores refuse, whatever the verdict
+  const retry = await $.tool.call({ tool: 'Bash', command: BAD })
+  expect(retry.deny).toContain('WATCHTOWER REFUSED npm:react-dom-utilz')
+  expect(w.ran).toEqual(['git status'])
 })
 
 test('a bare name resolves when the session saw it in one ecosystem, and asks otherwise', async ($, on) => {

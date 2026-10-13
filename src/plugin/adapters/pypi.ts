@@ -2,9 +2,17 @@ import type { PackageRef, VersionInfo } from '../core/model'
 import { cacheGet, cacheSet, TTL } from './cache'
 import type { PartialFacts } from './facts'
 import { fetchJson } from './http'
+import { LATEST_TTL_MS } from './npm'
 import type { SourceIo } from './ports'
 
+export { LATEST_TTL_MS }
+
 const NS = 'pypi'
+
+// The parser stores `==X` as X, so an exact pin is a bare PEP 440 version (no operator, no `*`)
+const EXACT_PEP440 = /^(?:\d+!)?\d+(?:\.\d+)*(?:[-_.]?(?:a|b|c|rc|alpha|beta|pre|preview|post|rev|r|dev)[-_.]?\d*)*(?:\+[0-9A-Za-z.]+)?$/i
+
+export const isExactPypiVersion = (version: string): boolean => EXACT_PEP440.test(version.trim())
 
 const isRecord = (v: unknown): v is Record<string, unknown> =>
   typeof v === 'object' && v !== null && !Array.isArray(v)
@@ -58,7 +66,10 @@ export const parsePypi = (json: unknown, ref: PackageRef): PartialFacts => {
     const publishedAt = Array.isArray(files) ? earliest(files as File[]) : undefined
     return publishedAt ? { version, publishedAt } : { version }
   })
-  const resolved = ref.version ?? (typeof json.info.version === 'string' ? json.info.version : undefined)
+  // A range (>=1.82, ~=2.0, <2) cannot be resolved here without pip's resolver, so the version
+  // stays unknown rather than a specifier no advisory or release could ever match
+  const latest = typeof json.info.version === 'string' ? json.info.version : undefined
+  const resolved = ref.version === undefined ? latest : isExactPypiVersion(ref.version) ? ref.version : undefined
   const files = resolved !== undefined ? releases[resolved] : undefined
   const sdistOnly = Array.isArray(files) && files.length > 0
     ? (files as File[]).every(f => f.packagetype === 'sdist')
@@ -91,6 +102,9 @@ export const fetchPypi = async (io: SourceIo, ref: PackageRef): Promise<PartialF
   const res = await fetchJson(io, pypiUrl(ref.name))
   const facts = res.ok ? parsePypi(res.json, ref) : res.status === 404 ? { ...pypiUnknown(), exists: false } : undefined
   if (!facts) return pypiUnknown()
-  await cacheSet(io, NS, id, facts, res.ok ? TTL.metadata : TTL.notFound).catch(() => {})
+  // Unversioned requests follow the latest release, so their answer is kept briefly; a cached
+  // 404 only ever refuses, so it keeps the long TTL
+  const ttl = !res.ok ? TTL.notFound : ref.version === undefined ? LATEST_TTL_MS : TTL.metadata
+  await cacheSet(io, NS, id, facts, ttl).catch(() => {})
   return facts
 }

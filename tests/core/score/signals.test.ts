@@ -76,6 +76,15 @@ describe('buildSignals', () => {
     expect(get(build({ privateRegistry: 'https://npm.acme.dev' }), 'privateRegistry').state).toBe('present')
   })
 
+  test('a registry named on the command line is a hard signal', () => {
+    expect(build().some(s => s.kind === 'commandLineRegistry')).toBe(false)
+    const s = get(build({ commandLineRegistry: 'https://attacker.example' }), 'commandLineRegistry')
+    expect(s).toMatchObject({ state: 'present', weight: 'hard' })
+    expect(s.evidence).toBe(
+      "Installs from a registry named on the command line (https://attacker.example) that Watchtower can't vet; add it to .npmrc/pip.conf if it's yours",
+    )
+  })
+
   test('package age under 7 days is strong', () => {
     const young = [{ version: '2.0.0', publishedAt: iso(NOW - 2 * DAY) }]
     expect(get(build({ versions: young }), 'packageAge')).toMatchObject({ state: 'present', weight: 'strong' })

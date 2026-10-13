@@ -29,6 +29,7 @@ export const WEIGHTS: Record<SignalKind, Signal['weight']> = {
   singleMaintainerLowAdoption: 'weak',
   noRepository: 'weak',
   privateRegistry: 'weak',
+  commandLineRegistry: 'hard',
 }
 
 const sig = (kind: SignalKind, state: SignalState, text: string, imitates?: string): Signal =>
@@ -61,6 +62,7 @@ export const buildSignals = (facts: PackageFacts, now: number, popular: Typosqua
   out.push(sig('exists', exists, evidence.exists(ecosystem, name, exists)))
 
   if (facts.privateRegistry) out.push(sig('privateRegistry', 'present', evidence.privateRegistry('present', facts.privateRegistry)))
+  if (facts.commandLineRegistry) out.push(sig('commandLineRegistry', 'present', evidence.commandLineRegistry(facts.commandLineRegistry)))
 
   const m = findMalware(facts.osv, facts.resolvedVersion)
   const ids = m.state === 'absent' ? [] : m.entries.map(e => e.id)

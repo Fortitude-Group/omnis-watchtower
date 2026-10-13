@@ -94,9 +94,10 @@ export const gatherFacts = async (io: SourceIo, refs: PackageRef[], config: Priv
     const resolution = resolutions.get(key(ref))!
     if (resolution.kind === 'private') return privateFacts(io, ref, resolution.registry)
     const facts = await publicFacts(io, ref, downloads)
-    // Behind a mirror or a private extra index, a name the public registry lacks can only
-    // come from the private index: report it as private rather than as nonexistent
-    if (resolution.kind === 'mirror' && facts.exists === false) return { ...unknownFacts(ref), privateRegistry: resolution.registry }
+    // Behind a mirror, a name the public registry lacks could be internal, or invented by the
+    // agent: Watchtower can't tell which, so it fails closed and reports it as nonexistent.
+    // Internal names served that way belong in privateAllowlist (code review, 2026-10-13: the
+    // earlier "treat as private" rule let every invented name through behind a corporate mirror)
     return facts
   }
   return Promise.all(refs.map(ref => {

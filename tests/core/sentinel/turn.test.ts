@@ -14,8 +14,12 @@ describe('matchTurn', () => {
   test('by agent id when the host reports one', () => {
     expect(matchTurn(all, { agentId: 'a-2', reason: 'answer', answer: 'x' })?.key).toBe('npm:other@latest')
   })
-  test('by the echoed investigation id otherwise', () => {
-    expect(matchTurn(all, { agentId: 'unknown', reason: 'answer', answer: verdict('allow', { investigation: 'wt-abc' }) })?.key).toBe('npm:left-padx@latest')
+  test('by the echoed investigation id when the host gave the Sentinel no agent id', () => {
+    const noId = { k: inv({ agentId: undefined }) }
+    expect(matchTurn(noId, { agentId: 'unknown', reason: 'answer', answer: verdict('allow', { investigation: 'wt-abc' }) })?.key).toBe('npm:left-padx@latest')
+  })
+  test('never by token when the investigation has its own agent id (another subagent quoting it)', () => {
+    expect(matchTurn(all, { agentId: 'someone-else', reason: 'answer', answer: verdict('allow', { investigation: 'wt-abc' }) })).toBeUndefined()
   })
   test('a turn matching neither is not ours', () => {
     expect(matchTurn(all, { agentId: 'unknown', reason: 'answer', answer: verdict('allow') })).toBeUndefined()

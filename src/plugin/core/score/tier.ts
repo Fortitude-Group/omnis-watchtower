@@ -47,20 +47,24 @@ export const evaluate = (
   cooldown?: Cooldown,
 ): { tier: Tier; pinnedTo?: string } => {
   if (override) return { tier: override.action === 'allow' ? 'pass' : 'refuse' }
+  // An index named on the command line is not the project's config, so a private name gives no cover
+  if (present(signals, 'commandLineRegistry')) return { tier: 'refuse' }
   if (allowlisted || present(signals, 'privateRegistry')) {
     // A private name the public registry also serves is dependency confusion (US1-6), and an
     // unanswered check cannot clear it (FR-009).
     const shadow = stateOf(signals, 'dependencyConfusion')
     return { tier: shadow === 'present' ? 'refuse' : shadow === 'unknown' ? 'hold' : 'pass' }
   }
-  if (stateOf(signals, 'exists') === 'unknown') return { tier: 'unverified' }
   const hard = signals.some(
     s => s.weight === 'hard' && (s.kind === 'exists' ? s.state === 'absent' : s.state === 'present'),
   )
   if (hard) return { tier: 'refuse' }
   const low = stateOf(signals, 'lowAdoption')
   if (present(signals, 'typosquat') && (low === 'present' || low === 'unknown')) return { tier: 'refuse' }
-  if (stateOf(signals, 'malware') === 'unknown' || stateOf(signals, 'dependencyConfusion') === 'unknown') return { tier: 'hold' }
+  const malware = stateOf(signals, 'malware')
+  // Registry unreachable: allowed and flagged, but only once the malware check has cleared it
+  if (stateOf(signals, 'exists') === 'unknown') return { tier: malware === 'unknown' ? 'hold' : 'unverified' }
+  if (malware === 'unknown' || stateOf(signals, 'dependencyConfusion') === 'unknown') return { tier: 'hold' }
   const pin = pinFor(signals, cooldown)
   if (pin) return { tier: 'pass', pinnedTo: pin }
   const strong = signals.some(s => s.weight === 'strong' && s.state === 'present')
@@ -128,14 +132,4 @@ export type CommandDecision = { allow: boolean; blocking: PackageCheck[] }
 export const decideCommand = (checks: PackageCheck[]): CommandDecision => {
   const blocking = checks.filter(c => !isAllowed(c))
   return { allow: blocking.length === 0, blocking }
-}
-
-const globToRegExp = (glob: string): RegExp =>
-  new RegExp(`^${glob.trim().toLowerCase().replace(/[.+^${}()|[\]\\]/g, '\\$&').replace(/\*/g, '.*').replace(/\?/g, '.')}$`)
-
-/** `privateAllowlist` is comma-separated globs, e.g. `@acme/*, acme-*`. */
-export const matchesAllowlist = (name: string, allowlist: string | readonly string[]): boolean => {
-  const globs = (typeof allowlist === 'string' ? allowlist.split(',') : allowlist).map(g => g.trim()).filter(Boolean)
-  const n = name.trim().toLowerCase()
-  return globs.some(g => globToRegExp(g).test(n))
 }

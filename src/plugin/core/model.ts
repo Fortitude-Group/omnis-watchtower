@@ -74,6 +74,7 @@ export type SignalKind =
   | 'singleMaintainerLowAdoption'
   | 'noRepository'
   | 'privateRegistry'
+  | 'commandLineRegistry'
 
 export type SignalState = 'present' | 'absent' | 'unknown'
 
@@ -145,4 +146,6 @@ export type PackageFacts = {
    * existence check failed, which blocks clearing (hold).
    */
   shadowsPrivate?: Fact<boolean>
+  /** A registry or index URL named on the command line (`--registry`, `--index-url`); never trusted. */
+  commandLineRegistry?: string
 }
