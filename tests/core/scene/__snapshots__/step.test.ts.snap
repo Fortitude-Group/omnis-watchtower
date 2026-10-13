@@ -1,0 +1,52 @@
+// Vitest Snapshot v1, https://vitest.dev/guide/snapshot.html
+
+exports[`determinism and purity > recorded event log snapshot 1`] = `
+{
+  "agents": [
+    {
+      "id": "a1",
+      "state": "working",
+      "x": 0.3333,
+      "y": 0.5109,
+    },
+    {
+      "id": "a2",
+      "state": "working",
+      "x": 0.6191,
+      "y": 0.6018,
+    },
+  ],
+  "log": [
+    "▲ coder launched",
+    "▲ researcher launched",
+    "✖ chalk refused · x",
+    "◆ left-padx held",
+    "· sentinel → left-padx",
+  ],
+  "packages": [
+    {
+      "id": "r2|npm:left-padx@1.0.0",
+      "phase": "held",
+      "x": 0.8712,
+      "y": 0.602,
+    },
+  ],
+  "rng": 2967356785,
+  "sentinels": [
+    {
+      "id": "s1",
+      "phase": "scanning",
+    },
+  ],
+  "t": 7095,
+  "totals": {
+    "held": 1,
+    "intercepts": 2,
+    "overridden": 0,
+    "passed": 0,
+    "refused": 1,
+    "unchecked": 0,
+    "unverified": 0,
+  },
+}
+`;

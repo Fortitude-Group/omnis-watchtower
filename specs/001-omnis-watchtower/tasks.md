@@ -173,8 +173,8 @@ implemented, tested and demonstrated independently.
 
 ### Tests for User Story 3
 
-- [ ] T049 [P] [US3] `tests/core/scene/reduce.test.ts`: every SceneEvent type updates Scene as specified (agents launch/act/finish, package phases inbound → atRing → passing/bursting/held, sentinel outbound → scanning → returning, totals, log capped, fault set/cleared); a pure-function check (input not mutated) (#49)
-- [ ] T050 [P] [US3] `tests/core/scene/step.test.ts`: motion and effect decay over `dtMs`, determinism (the same seed and event log yield the identical Scene after N steps), and a recorded event log snapshot (#50)
+- [X] T049 [P] [US3] `tests/core/scene/reduce.test.ts`: every SceneEvent type updates Scene as specified (agents launch/act/finish, package phases inbound → atRing → passing/bursting/held, sentinel outbound → scanning → returning, totals, log capped, fault set/cleared); a pure-function check (input not mutated) (#49)
+- [X] T050 [P] [US3] `tests/core/scene/step.test.ts`: motion and effect decay over `dtMs`, determinism (the same seed and event log yield the identical Scene after N steps), and a recorded event log snapshot (#50)
 - [ ] T051 [P] [US3] `tests/core/render/encoder.test.ts`: half-block encoding (top pixel = fg, bottom = bg, codepoint 0x2580), overlay cells replace pixels with a dimmed mean background, `cells` decodes to `columns*rows*3` u32 little-endian, every codepoint printable width-1 (#51)
 - [ ] T052 [P] [US3] `tests/core/render/themes.test.ts`: golden snapshots (hash of the `RasterFrame.cells`) for `radar` and `cracktro` at 120×36 and 70×24 on a seeded scene at fixed `tMs` values; verdict glyphs ✔ ◆ ✖ present in the overlay for each tier (FR-024) (#52)
 - [ ] T053 [P] [US3] `tests/core/render/perf.test.ts`: measure the 120×36 encode baseline (median of 200 frames), write it to `tests/core/render/perf-baseline.json` on first run, then fail if the median exceeds 1.5× the baseline (research R5) (#53)
@@ -184,7 +184,7 @@ implemented, tested and demonstrated independently.
 
 ### Implementation for User Story 3
 
-- [ ] T057 [P] [US3] Implement `src/plugin/core/scene/reduce.ts`, `step.ts` and `layout.ts` (normalised world coordinates, ship at (0.5,0.5), ring radius 0.36, orbit and entry angles from the PRNG) to pass T049–T050 (#57)
+- [X] T057 [P] [US3] Implement `src/plugin/core/scene/reduce.ts`, `step.ts` and `layout.ts` (normalised world coordinates, ship at (0.5,0.5), ring radius 0.36, orbit and entry angles from the PRNG) to pass T049–T050 (#57)
 - [ ] T058 [P] [US3] Implement `src/plugin/core/render/framebuffer.ts` (RGB float buffer, px/line/ring/disc with alpha, persistence decay), `encoder.ts` and `overlay.ts` (text layout: header, event log, fleet panel, totals, package labels, footer) to pass T051 (#58)
 - [ ] T059 [US3] Implement `src/plugin/core/render/terminal-raster.ts` (`Renderer<RasterFrame>`: maps world → framebuffer, runs theme passes, overlay, encode) and `src/plugin/core/render/themes/radar.ts` (phosphor decay 0.86, range rings, crosshair, sweep, monochrome chrome) and `themes/cracktro.ts` (copper bars, 3D starfield, rainbow ring, rainbow scrolltext footer), porting the approved mockup in `.superpowers/brainstorm/726761-1791923600/content/visual-style.html`; to pass T052–T053 (#59)
 - [ ] T060 [P] [US3] Implement `src/plugin/core/data/prices.ts` (list prices per model id for the current Claude family, with a dated source comment) and `src/plugin/core/text/legend.ts` to pass T054 (#60)
@@ -203,8 +203,8 @@ implemented, tested and demonstrated independently.
 
 **Independent Test**: quickstart §6. The demo runs offline, is identical on repeat, and works in both themes.
 
-- [ ] T065 [P] [US4] Create `src/plugin/core/data/demo-script.ts`: a timed SceneEvent list (3 helper agents launch; `chalk`, `express`, `numpy` pass; `react-dom-utilz` refused as invented; `reqeusts` refused as a typosquat; `left-padx` held → Sentinel → cleared; `fastapi-auth-kit` held → Sentinel → refused "obfuscated postinstall"; agents return), about 45 s long (#65)
-- [ ] T066 [P] [US4] `tests/core/scene/demo.test.ts`: replaying the demo script through `reduce`/`step` with a fixed seed yields identical frame hashes on 10 consecutive runs (SC-008), for both themes (#66)
+- [X] T065 [P] [US4] Create `src/plugin/core/data/demo-script.ts`: a timed SceneEvent list (3 helper agents launch; `chalk`, `express`, `numpy` pass; `react-dom-utilz` refused as invented; `reqeusts` refused as a typosquat; `left-padx` held → Sentinel → cleared; `fastapi-auth-kit` held → Sentinel → refused "obfuscated postinstall"; agents return), about 45 s long (#65)
+- [X] T066 [P] [US4] `tests/core/scene/demo.test.ts`: replaying the demo script through `reduce`/`step` with a fixed seed yields identical frame hashes on 10 consecutive runs (SC-008), for both themes (#66)
 - [ ] T067 [US4] Implement `src/plugin/hooks/commands/demo.ts`: opens the pane in demo mode with a separate demo Scene fed from the script on the pane clock; never touches the gate, adapters or Sentinel; banner "DEMO — scripted replay"; engine test `src/plugin/tests/demo.test.ts` asserting zero `http.fetch` and zero `agent.spawn` during the demo (#67)
 
 ---
