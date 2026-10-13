@@ -264,7 +264,8 @@ an override.
 
 **Holding and investigation**
 
-- **FR-035**: For a package on the bundled popular list, when the only reason to hold is that
+- **FR-035**: For a popular package (on the bundled popular list, or with at least 100,000
+  downloads in the last week; research R18), when the only reason to hold is that
   the latest release is under 72 hours old and no version was requested, Watchtower MUST rewrite
   the install to the newest release at least 72 hours old instead of holding it, and MUST tell
   the agent the pinned version and the reason. If no such release exists, or the version was

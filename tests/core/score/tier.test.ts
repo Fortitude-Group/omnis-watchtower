@@ -221,6 +221,8 @@ describe('6a. cooldown pin (FR-035)', () => {
     const idx = buildTyposquatIndex(['zod', 'react'])
     expect(scorePackage(f, NOW, idx)).toMatchObject({ tier: 'pass', pinnedTo: '4.6.6', decidedBy: 'cooldown' })
     expect(scorePackage({ ...f, ref: { ...f.ref, version: '4.6.7' } }, NOW, idx).tier).toBe('hold')
-    expect(scorePackage(f, NOW, buildTyposquatIndex(['react'])).tier).toBe('hold')
+    // off the list: popular by downloads (100k+/week) still pins; a little-used package holds
+    expect(scorePackage(f, NOW, buildTyposquatIndex(['react']))).toMatchObject({ tier: 'pass', pinnedTo: '4.6.6' })
+    expect(scorePackage({ ...f, weeklyDownloads: 99_999 }, NOW, buildTyposquatIndex(['react'])).tier).toBe('hold')
   })
 })

@@ -28,6 +28,17 @@ export const fixtureIo = (extra: Record<string, Fixture> = {}) => {
       calls.push(k)
       const recorded = fixtures[k]
       if (recorded) return reply(recorded)
+      // OSV answers a versioned query with only the entries affecting that version. Emulate it
+      // from the name-only recording: entries listing versions keep only those that include it
+      if (url === 'https://api.osv.dev/v1/query' && init?.body?.includes('"version"')) {
+        const q = JSON.parse(init.body) as { package: { name: string; ecosystem: string }; version: string }
+        const byName = fixtures[`POST ${url} ${JSON.stringify({ package: q.package })}`]
+        if (byName && byName.status === 200) {
+          const vulns = ((byName.body as { vulns?: { affected?: { versions?: string[] }[] }[] }).vulns ?? [])
+            .filter(v => { const listed = (v.affected ?? []).flatMap(a => a.versions ?? []); return listed.length === 0 || listed.includes(q.version) })
+          return reply({ status: 200, body: vulns.length ? { vulns } : {} })
+        }
+      }
       if (url.startsWith(BULK) && url.includes(',')) {
         const body: Record<string, unknown> = {}
         for (const name of url.slice(BULK.length).split(',')) {

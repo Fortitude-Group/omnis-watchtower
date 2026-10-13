@@ -219,6 +219,28 @@ Consequence: no design change to behaviour. Only the code structure changes (ada
 ports, atoms are per-file, persisted types live in the contract), and it is recorded in
 tasks.md Conventions.
 
+## R18. Live benign sweep (T042, SC-002), 2026-10-13
+
+`WT_LIVE=1 node node_modules/vitest/vitest.mjs run tests/live` scores the top 500 npm and top 500
+PyPI packages against the live registries. Results are in `docs/validation/benign-sweep-2026-10.md`.
+
+- **First run: 4 refusals** (pnpm, undici, vitest, litellm). Two causes, both fixed:
+  1. The R7 summary rule matched "malicious" in ordinary vulnerability advisories ("via
+     Malicious Patch File", "a malicious website"). Now: `malware` anywhere, or a summary that
+     *opens* with "(embedded) malicious code/package/version/release".
+  2. OSV advisories describe affected versions as ranges, which we didn't evaluate, so litellm's
+     advisory for two hijacked releases condemned every version. Now OSV is queried with the
+     resolved version, so OSV does its own range matching.
+- **Second run: 0 refusals, 39 holds**, all PyPI. 28 were fresh releases that weren't pinned,
+  because the PyPI popular list is the 100-name placeholder (T037), and 6 were look-alikes
+  between genuinely popular packages (pynacl/pyyaml, gunicorn/uvicorn, grpclib/grpcio,
+  tomli-w/tomlkit, markdownify/markdown-it-py, httpx2/httpx).
+- **Fix:** "popular" for the cooldown pin also means at least 100,000 weekly downloads, a signal
+  that needs no dataset licence, and a look-alike with at least 50,000 weekly downloads is a
+  neighbour, not a squatter.
+- **Third run: 998 pass (59 pinned), 0 refused, 2 held** (databricks-sdk and nbconvert: each has a
+  fresh release *and* no linked repository, two signals, so the hold is the cautious answer).
+
 ## R16. Tracker (constitution Principle VII)
 
 - **Decision**: the project of record is **GitHub Issues** on `Fortitude-Group/omnis-watchtower`

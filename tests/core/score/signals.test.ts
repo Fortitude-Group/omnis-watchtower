@@ -96,7 +96,7 @@ describe('buildSignals', () => {
   })
 
   test('typosquat names the imitated package', () => {
-    const s = buildSignals(facts({ ref: { ecosystem: 'npm', name: 'lodahs' } }), NOW, popular)
+    const s = buildSignals(facts({ ref: { ecosystem: 'npm', name: 'lodahs' }, weeklyDownloads: 200 }), NOW, popular)
     expect(get(s, 'typosquat')).toMatchObject({ state: 'present', imitates: 'lodash', weight: 'strong' })
     expect(state({}, 'typosquat')).toBe('absent')
   })
@@ -151,5 +151,23 @@ describe('buildSignals', () => {
     for (const k of ['packageAge', 'versionAge', 'installScripts', 'sdistOnly', 'lowAdoption', 'singleMaintainerLowAdoption', 'noRepository'] as const) {
       expect(get(s, k).state).toBe('unknown')
     }
+  })
+})
+
+describe('look-alikes that are themselves widely used (live sweep, 2026-10-13)', () => {
+  test('a resembling name with 50k+ weekly downloads is a neighbour, not a squatter', async () => {
+    const { buildSignals } = await import('../../../src/plugin/core/score/signals')
+    const { buildTyposquatIndex } = await import('../../../src/plugin/core/score/typosquat')
+    const index = buildTyposquatIndex(['pyyaml', 'uvicorn'], 'pypi')
+    const base = {
+      exists: true, resolvedVersion: '1.0.0', versions: [{ version: '1.0.0', publishedAt: '2020-01-01T00:00:00Z' }],
+      installScripts: [], sdistOnly: false, maintainerCount: 'unknown' as const, repository: 'https://github.com/x/y', osv: [],
+    }
+    const now = Date.parse('2026-10-13T00:00:00Z')
+    const wide = buildSignals({ ...base, ref: { ecosystem: 'pypi', name: 'pynacl' }, weeklyDownloads: 30_000_000 }, now, index)
+    expect(wide.find(s => s.kind === 'typosquat')).toMatchObject({ state: 'absent' })
+    expect(wide.find(s => s.kind === 'typosquat')?.evidence).toContain('resembles pyyaml')
+    const tiny = buildSignals({ ...base, ref: { ecosystem: 'pypi', name: 'pyyamI' }, weeklyDownloads: 40 }, now, index)
+    expect(tiny.find(s => s.kind === 'typosquat')).toMatchObject({ state: 'present', imitates: 'pyyaml' })
   })
 })

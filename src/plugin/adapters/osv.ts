@@ -46,7 +46,10 @@ export const fetchOsv = async (io: SourceIo, ref: PackageRef): Promise<Fact<OsvE
   const hit = await cacheGet<OsvEntry[]>(io, NS, id).catch(() => undefined)
   if (hit) return hit
   const res = await fetchJson(io, OSV_URL, { json: query })
-  const entries = res.ok ? parseOsv(res.json) : 'unknown'
+  const parsed = res.ok ? parseOsv(res.json) : 'unknown'
+  // With a version in the query OSV has already matched its ranges, so every entry applies to
+  // that version; drop the explicit lists so they aren't mistaken for the only affected versions
+  const entries = parsed !== 'unknown' && 'version' in query ? parsed.map(({ versions: _v, ...e }) => e) : parsed
   if (entries !== 'unknown') await cacheSet(io, NS, id, entries, TTL.osv).catch(() => {})
   return entries
 }

@@ -3,7 +3,7 @@
 import type { Override, PackageCheck, PackageFacts, PackageRef, Signal, Tier } from '../model'
 import { cooldownPin, versionRequested } from './cooldown'
 import { alternativeFor, evidence } from './evidence'
-import { buildSignals, WEIGHTS } from './signals'
+import { buildSignals, WEIGHTS, POPULAR_WEEKLY } from './signals'
 import { isPopular, type TyposquatIndex } from './typosquat'
 
 export const VERDICT_TTL_MS = 24 * 3_600_000
@@ -108,7 +108,9 @@ export type ScoreOptions = Pick<DecideInput, 'override' | 'allowlisted' | 'mode'
 export const scorePackage = (facts: PackageFacts, now: number, popular: TyposquatIndex, options: ScoreOptions = {}): PackageCheck => {
   const pin = cooldownPin(facts, now)
   const cooldown: Cooldown = {
-    popular: isPopular(popular, facts.ref.name),
+    // On the bundled list, or widely used by download count: the list for PyPI is a 100-name
+    // placeholder until T037, and downloads need no licence (live sweep, 2026-10-13)
+    popular: isPopular(popular, facts.ref.name) || (facts.weeklyDownloads !== 'unknown' && facts.weeklyDownloads >= POPULAR_WEEKLY),
     requested: versionRequested(facts.ref),
     latest: facts.resolvedVersion === 'unknown' ? '?' : facts.resolvedVersion,
     ...(pin ? { pin } : {}),

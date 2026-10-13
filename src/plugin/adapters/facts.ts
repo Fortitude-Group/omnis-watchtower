@@ -53,21 +53,28 @@ const shadowCheck = async (io: SourceIo, ref: PackageRef): Promise<Fact<boolean>
   return isKnown(exists) ? exists : 'unknown'
 }
 
+// OSV matches version ranges itself, so ask about the version that will actually install. An
+// advisory for one hijacked release (litellm, chalk 5.6.1) must not condemn every other version.
+// Unknown version: ask by name, and findMalware treats version-specific entries as unknown.
+const withResolved = (ref: PackageRef, resolved: Fact<string> | undefined): PackageRef =>
+  resolved && resolved !== 'unknown' && !ref.version ? { ...ref, version: resolved } : ref
+
 const privateFacts = async (io: SourceIo, ref: PackageRef, registry: string): Promise<PackageFacts> => {
   return { ...unknownFacts(ref), privateRegistry: registry, shadowsPrivate: await shadowCheck(io, ref) }
 }
 
 const publicFacts = async (io: SourceIo, ref: PackageRef, downloads: Promise<Record<string, Fact<number>>>): Promise<PackageFacts> => {
   if (ref.ecosystem === 'npm') {
-    const [manifest, deps, dl, osv] = await Promise.all([
+    const [manifest, deps, dl] = await Promise.all([
       fetchNpmManifest(io, ref),
       fetchDepsDev(io, ref),
       downloads.then(all => all[ref.name] ?? 'unknown'),
-      fetchOsv(io, ref),
     ])
+    const osv = await fetchOsv(io, withResolved(ref, manifest.resolvedVersion))
     return mergeFacts(ref, manifest, deps, { weeklyDownloads: dl, osv, sdistOnly: false })
   }
-  const [meta, dl, osv] = await Promise.all([fetchPypi(io, ref), fetchPypiDownloads(io, ref.name), fetchOsv(io, ref)])
+  const [meta, dl] = await Promise.all([fetchPypi(io, ref), fetchPypiDownloads(io, ref.name)])
+  const osv = await fetchOsv(io, withResolved(ref, meta.resolvedVersion))
   return mergeFacts(ref, meta, { weeklyDownloads: dl, osv })
 }
 

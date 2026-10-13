@@ -61,6 +61,8 @@ export const evidence = {
         ? `Name is a look-alike of the popular package ${imitates}`
         : `Name is ${distance === 1 ? 'one edit' : `${distance} edits`} away from the popular package ${imitates}`
       : 'Name does not resemble a popular package',
+  typosquatEstablished: (imitates: string, weekly: number): string =>
+    `Name resembles ${imitates}, but the package is itself widely used (${weekly.toLocaleString('en-GB')} downloads last week)`,
 
   installScripts: (state: Signal['state'], scripts: string[] = []): string =>
     state === 'present'

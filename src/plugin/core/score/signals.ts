@@ -10,6 +10,10 @@ export const DAY = 86_400_000
 export const NEW_PACKAGE_MS = 7 * DAY
 export const NEW_VERSION_MS = 72 * 3_600_000
 export const LOW_ADOPTION_WEEKLY = 1_000
+/** At or above this, a package counts as popular even when it is not on the bundled list (FR-035). */
+export const POPULAR_WEEKLY = 100_000
+/** At or above this, a name resembling a popular one is a neighbour, not a squatter. */
+export const ESTABLISHED_WEEKLY = 50_000
 export const INSTALL_SCRIPTS = ['preinstall', 'install', 'postinstall'] as const
 
 export const WEIGHTS: Record<SignalKind, Signal['weight']> = {
@@ -86,11 +90,16 @@ export const buildSignals = (facts: PackageFacts, now: number, popular: Typosqua
     ),
   )
 
+  // A look-alike that is itself widely used (pynacl/pyyaml, gunicorn/uvicorn, grpclib/grpcio in the
+  // live sweep) is a neighbour, not a squatter: squatting packages don't reach 50k downloads a week
   const squat = findTyposquat(popular, normalise(ecosystem, name))
+  const established = known(facts.weeklyDownloads) && facts.weeklyDownloads >= ESTABLISHED_WEEKLY
   out.push(
-    squat
+    squat && !established
       ? sig('typosquat', 'present', evidence.typosquat('present', squat.imitates, squat.distance), squat.imitates)
-      : sig('typosquat', 'absent', evidence.typosquat('absent')),
+      : squat
+        ? sig('typosquat', 'absent', evidence.typosquatEstablished(squat.imitates, known(facts.weeklyDownloads) ? facts.weeklyDownloads : 0))
+        : sig('typosquat', 'absent', evidence.typosquat('absent')),
   )
 
   const scripts = known(facts.installScripts)
