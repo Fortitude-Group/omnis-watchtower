@@ -1,0 +1,19 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://github.com/Fortitude-Group/omnis-watchtower/contracts/sentinel-verdict.schema.json",
+  "title": "SentinelVerdict",
+  "description": "The only accepted output of the Watchtower Sentinel subagent. Anything else is a malformed answer (retried once, then the hold resolves to refuse). The verdict may resolve a held package only; it can never override a hard refusal signal.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["verdict", "confidence", "evidence"],
+  "properties": {
+    "verdict": { "enum": ["allow", "block"] },
+    "confidence": { "type": "number", "minimum": 0, "maximum": 1 },
+    "evidence": {
+      "type": "array",
+      "minItems": 1,
+      "maxItems": 8,
+      "items": { "type": "string", "minLength": 1, "maxLength": 200 }
+    }
+  }
+}

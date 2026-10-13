@@ -74,7 +74,7 @@ refused with a reason; a legitimate popular package installs normally.
 ### User Story 2 - Ambiguous packages are held and investigated automatically (Priority: P2)
 
 An agent tries to install a package that is not clearly dangerous but is suspicious: it was
-published days ago, or runs scripts on install, or has a single new maintainer. Watchtower holds
+published days ago, or runs scripts on install, or has a lone maintainer and almost no users. Watchtower holds
 the install and tells the agent to carry on with other work and retry later. A Sentinel agent is
 dispatched to investigate. When it reaches a verdict, the next retry is allowed or refused at once,
 and the developer and agent are both told the outcome.
@@ -242,8 +242,8 @@ an override.
   package name.
 - **FR-006**: Watchtower MUST treat as suspicious: first publication under 7 days ago; requested
   version published under 72 hours ago; close similarity to a popular package name; install-time
-  scripts or source-only distribution; very low adoption, a single new maintainer, or no linked
-  source repository.
+  scripts or source-only distribution; very low adoption; a single maintainer combined with very
+  low adoption; or no linked source repository.
 - **FR-007**: Watchtower MUST escalate a close imitation of a popular package to refuse when
   combined with very low adoption.
 - **FR-008**: Every decision MUST carry human-readable evidence, one line per contributing signal.

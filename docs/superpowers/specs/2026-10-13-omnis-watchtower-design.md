@@ -152,12 +152,12 @@ a one-line evidence string.
 | Signal | Source | Effect |
 |---|---|---|
 | Package does not exist | Registry 404 | 🔴 deny: "this name does not exist; you probably invented it" |
-| Known malicious (`MAL-` advisory) | OSV.dev | 🔴 hard block |
+| Known malicious (OSV id `MAL-*`, or CWE-506, or summary says malware/malicious; corrected in research R7) | OSV.dev | 🔴 hard block |
 | Public package shadows a private package name (dependency confusion) | Registry + private-registry config | 🔴 hard block |
 | First published < 7 days, or requested version < 72 h old | npm / PyPI JSON | 🟡 strong |
 | Typosquat of a popular package (edit distance, homoglyphs, `-`/`_` confusion) | Bundled top-5k list per ecosystem | 🟡, or 🔴 combined with low downloads |
 | Install scripts (`preinstall`/`install`/`postinstall`) or sdist-only on PyPI | Version manifest | 🟡 |
-| Very low downloads, single new maintainer, no repository link | Downloads API, deps.dev | 🟡 weak |
+| Very low downloads; single maintainer *with* < 1k weekly downloads (corrected in research R8); no repository link | Downloads API, deps.dev | 🟡 weak |
 
 Rules:
 
