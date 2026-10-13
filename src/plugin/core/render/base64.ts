@@ -9,10 +9,18 @@ const CHUNK = 8192
 
 let scratch = new Uint8Array(0)
 
-// A native ASCII decoder where the runtime has one (Node, browsers); plain JS otherwise.
+// A native decoder where the runtime has one; plain JS otherwise. The output is pure ASCII, so UTF-8
+// (the only label the mod runtime accepts: 'latin1' throws there) decodes it exactly.
 type Decoder = { decode(b: Uint8Array): string }
-const DecoderCtor = (globalThis as unknown as { TextDecoder?: new (label: string) => Decoder }).TextDecoder
-const ascii: Decoder | null = DecoderCtor ? new DecoderCtor('latin1') : null
+const DecoderCtor = (globalThis as unknown as { TextDecoder?: new () => Decoder }).TextDecoder
+const makeDecoder = (): Decoder | null => {
+  try {
+    return DecoderCtor ? new DecoderCtor() : null
+  } catch {
+    return null
+  }
+}
+const ascii = makeDecoder()
 
 export const toBase64 = (bytes: Uint8Array): string => {
   const outLen = Math.ceil(bytes.length / 3) * 4
