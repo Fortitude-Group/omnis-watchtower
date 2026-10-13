@@ -45,17 +45,16 @@ const isKnown = <T>(v: Fact<T>): v is T => v !== 'unknown'
 // detection, and there is no way to learn whether a public name exists without asking, so
 // the check is kept to one existence request against the registry, with no downloads,
 // deps.dev or OSV calls. The answer is cached like any other registry lookup.
-const shadowCheck = async (io: SourceIo, ref: PackageRef): Promise<boolean | undefined> => {
+// A failed check is 'unknown', which holds the package rather than clearing it (FR-009)
+const shadowCheck = async (io: SourceIo, ref: PackageRef): Promise<Fact<boolean>> => {
   const bare = { ecosystem: ref.ecosystem, name: ref.name }
-  const facts = ref.ecosystem === 'npm' ? await fetchNpmManifest(io, bare) : await fetchPypi(io, bare)
-  return isKnown(facts.exists ?? 'unknown') ? facts.exists as boolean : undefined
+  const facts = await (ref.ecosystem === 'npm' ? fetchNpmManifest(io, bare) : fetchPypi(io, bare)).catch(() => ({}) as PartialFacts)
+  const exists = facts.exists ?? 'unknown'
+  return isKnown(exists) ? exists : 'unknown'
 }
 
 const privateFacts = async (io: SourceIo, ref: PackageRef, registry: string): Promise<PackageFacts> => {
-  const facts: PackageFacts = { ...unknownFacts(ref), privateRegistry: registry }
-  const shadows = await shadowCheck(io, ref)
-  if (shadows !== undefined) facts.shadowsPrivate = shadows
-  return facts
+  return { ...unknownFacts(ref), privateRegistry: registry, shadowsPrivate: await shadowCheck(io, ref) }
 }
 
 const publicFacts = async (io: SourceIo, ref: PackageRef, downloads: Promise<Record<string, Fact<number>>>): Promise<PackageFacts> => {

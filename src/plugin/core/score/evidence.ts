@@ -35,7 +35,12 @@ export const evidence = {
   dependencyConfusion: (name: string, state: Signal['state']): string =>
     state === 'present'
       ? `A public package named ${name} shadows a private package of the same name (dependency confusion)`
-      : 'Does not shadow a private package',
+      : state === 'absent'
+        ? 'Does not shadow a private package'
+        : `Could not check whether the public registry also serves the private name ${name}`,
+
+  cooldownPin: (latest: string, pinned: string): string =>
+    `Latest release ${latest} is under 72 hours old; pinned to ${pinned}`,
 
   privateRegistry: (state: Signal['state'], where?: string): string =>
     state === 'present' ? `Resolves to a private source (${where ?? 'private registry'})` : 'Public registry package',

@@ -93,3 +93,6 @@ export const findTyposquat = (index: TyposquatIndex, raw: string): TyposquatMatc
   }
   return best && { imitates: best.imitates, distance: best.distance }
 }
+
+/** True when the name is on the popular list itself (after ecosystem normalisation). */
+export const isPopular = (index: TyposquatIndex, name: string): boolean => index.names.has(normalise(index.ecosystem, name))

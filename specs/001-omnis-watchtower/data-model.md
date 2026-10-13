@@ -79,7 +79,10 @@ PackageCheck {
 
 Tier function (pure, in `core/`), applied in order:
 1. Developer override exists → its tier (`pass` for allow, `refuse` for block).
-2. Resolves to a private registry or matches the allowlist → `pass` (signal `privateRegistry`).
+2. Resolves to a private registry or matches the allowlist → `pass` (signal `privateRegistry`),
+   **except** dependency confusion: if the public registry also serves the name → `refuse`; if
+   that check failed (unknown) → `hold` (US1-6, FR-009; corrected 2026-10-13, the earlier wording
+   would have passed every shadowed private name).
 3. Registry unreachable for `exists` → `unverified` (allowed, flagged).
 4. Any **hard** signal present (`exists` absent, `malware`, `dependencyConfusion`) → `refuse`.
 5. `typosquat` present AND (`lowAdoption` present or unknown) → `refuse`.

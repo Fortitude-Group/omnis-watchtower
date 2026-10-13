@@ -68,7 +68,8 @@ export const buildSignals = (facts: PackageFacts, now: number, popular: Typosqua
     ),
   )
 
-  const shadow: SignalState = facts.shadowsPrivate ? 'present' : 'absent'
+  const shadow: SignalState =
+    facts.shadowsPrivate === 'unknown' ? 'unknown' : facts.shadowsPrivate ? 'present' : 'absent'
   out.push(sig('dependencyConfusion', shadow, evidence.dependencyConfusion(name, shadow)))
 
   const first = firstPublished(facts.versions)

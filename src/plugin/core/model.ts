@@ -37,7 +37,8 @@ export const isValidName = (ecosystem: Ecosystem, name: string): boolean =>
     ? name.length > 0 && name.length <= 214 && NPM_NAME.test(name)
     : PYPI_NAME.test(name)
 
-export type InstallTool = 'npm' | 'pnpm' | 'yarn' | 'bun' | 'npx' | 'pip' | 'uv' | 'poetry' | 'pipx'
+/** `shell`: a script piped or substituted into a shell interpreter; its packages are unknowable (FR-003). */
+export type InstallTool = 'npm' | 'pnpm' | 'yarn' | 'bun' | 'npx' | 'pip' | 'uv' | 'poetry' | 'pipx' | 'shell'
 
 export type InstallRequest = {
   id: string
@@ -50,6 +51,12 @@ export type InstallRequest = {
   files?: string[]
   /** Index URLs named on the command line (`--index-url`, `--registry`). */
   indexUrls?: string[]
+  /**
+   * FR-035: `[start, end)` offsets, in `command`, of the token that named each package, keyed by
+   * `key(ref)`. Only packages written on the command line, and only where the token can be
+   * replaced by a pinned spelling (not `create` initialisers, aliases or `uvx`/`pipx run` targets).
+   */
+  spans?: Record<string, [number, number]>
   unchecked: string[]
   at: number
 }
@@ -83,7 +90,9 @@ export type PackageCheck = {
   tier: Tier
   signals: Signal[]
   alternative?: string
-  decidedBy: 'fast-score' | 'sentinel' | 'override' | 'cache' | 'warn-only'
+  /** FR-035 cooldown pin: the version the install is rewritten to. */
+  pinnedTo?: string
+  decidedBy: 'fast-score' | 'sentinel' | 'override' | 'cache' | 'warn-only' | 'cooldown'
   decidedAt: number
   expiresAt: number
 }
@@ -129,6 +138,9 @@ export type PackageFacts = {
   osv: Fact<OsvEntry[]>
   /** Set when the name resolves to a private registry and public sources were not consulted. */
   privateRegistry?: string
-  /** Set when a private package of this name exists and the public registry also has one. */
-  shadowsPrivate?: boolean
+  /**
+   * For a private package: whether the public registry also serves the name. Unknown when that
+   * existence check failed, which blocks clearing (hold).
+   */
+  shadowsPrivate?: Fact<boolean>
 }

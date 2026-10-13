@@ -71,8 +71,8 @@ describe('gatherFacts', () => {
     config.npm.scopes['@acme'] = 'https://npm.acme.internal/'
     const [twin, scoped] = await gatherFacts(io, [{ ecosystem: 'npm', name: 'chalk', version: '5.3.0' }, { ecosystem: 'npm', name: '@acme/widgets' }], config)
     expect(twin).toEqual({ ...unknownFacts({ ecosystem: 'npm', name: 'chalk', version: '5.3.0' }), privateRegistry: 'allowlist', shadowsPrivate: true })
-    // No recording for the scoped name: the existence answer is unknown, so the flag is left unset
-    expect(scoped).toEqual({ ...unknownFacts({ ecosystem: 'npm', name: '@acme/widgets' }), privateRegistry: 'https://npm.acme.internal/' })
+    // No recording for the scoped name: the existence check failed, so the answer is unknown
+    expect(scoped).toEqual({ ...unknownFacts({ ecosystem: 'npm', name: '@acme/widgets' }), privateRegistry: 'https://npm.acme.internal/', shadowsPrivate: 'unknown' })
     expect(calls.sort()).toEqual(['GET https://registry.npmjs.org/@acme%2Fwidgets/latest', 'GET https://registry.npmjs.org/chalk/latest'])
   })
 
