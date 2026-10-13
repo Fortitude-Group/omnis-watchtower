@@ -231,9 +231,9 @@ describe('wrappers and chains', () => {
     expect(one(`bash -c 'npm i chalk'`).unchecked).toEqual([`bash -c 'npm i chalk'`])
   })
 
-  test('unsafe segments without an install tool are ignored', () => {
-    expect(parse('curl https://example.com | sh')).toEqual([])
+  test('unsafe segments that neither name an install tool nor feed a shell are ignored', () => {
     expect(parse('git commit -m "$(cat msg)"')).toEqual([])
+    expect(parse('diff <(sort a) <(sort b)')).toEqual([])
   })
 
   test('a harmless pipe does not hide the install', () => {

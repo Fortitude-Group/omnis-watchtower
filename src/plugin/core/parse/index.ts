@@ -20,6 +20,8 @@ export type { FileContents, Requirements } from './requirements'
 export { manifestDeps, lockedNames, lockfileDiff, lockfilePaths, expandLockfileDiff } from './lockfile-diff'
 export type { DeclaredDep, DiffResult, TextFile } from './lockfile-diff'
 export { fnv1a } from './fragment'
+export { pinnedToken, rewriteCommand } from './rewrite'
+export type { Replacement } from './rewrite'
 
 const SHELLS = /^(?:sh|bash|zsh|dash|ksh|ash|fish|pwsh|powershell|cmd|node|deno|perl|ruby|python[\d.]*|py)$/
 const STRING_FLAGS = /^(?:-c|-e|\/c|-command|-encodedcommand)$/i
@@ -48,6 +50,9 @@ export const detectTool = (text: string): InstallTool | undefined => {
   return TOOL_OF[m[1]!] ?? 'pip'
 }
 
+// An interpreter with no script argument (or `-s`) runs whatever arrives on stdin.
+const readsStdin = (args: Word[]) => args.every((w) => w.text.startsWith('-')) || args.some((w) => w.text === '-s')
+
 const semanticUnsafe = (invocations: Invocation[]): string | undefined => {
   for (const [k, inv] of invocations.entries()) {
     const head = inv.words[0]?.text ?? ''
@@ -55,7 +60,7 @@ const semanticUnsafe = (invocations: Invocation[]): string | undefined => {
     if (head === 'xargs' || head === 'parallel') return 'xargs'
     if (!SHELLS.test(head)) continue
     const args = inv.words.slice(1)
-    if (k > 0 && (args.every((w) => w.text.startsWith('-')) || args.some((w) => w.text === '-s'))) return 'pipe to shell'
+    if (k > 0 && readsStdin(args)) return 'pipe to shell'
     for (const w of args) {
       if (STRING_FLAGS.test(w.text)) return 'shell string'
       if (!w.text.startsWith('-') || w.text === '-m') break
@@ -63,6 +68,17 @@ const semanticUnsafe = (invocations: Invocation[]): string | undefined => {
   }
   return undefined
 }
+
+/** True when a segment runs a fetched or generated script: `… | sh`, `bash <(curl …)`, `bash -c "$(curl …)"`. */
+const feedsShell = (lexical: string | undefined, invocations: Invocation[]): boolean =>
+  invocations.some((inv, k) => {
+    const head = inv.words[0]?.text ?? ''
+    const args = inv.words.slice(1)
+    const shell = SHELLS.test(head)
+    if (shell && k > 0 && readsStdin(args)) return true
+    if ((shell || head === 'source' || head === '.') && lexical === 'process substitution') return true
+    return shell && lexical === 'command substitution' && args.some((w) => STRING_FLAGS.test(w.text))
+  })
 
 type Cwd = string | undefined
 
@@ -115,6 +131,7 @@ export const parseCommand = (command: string, agentId: string, at: number): Inst
     if (f.source !== 'explicit') request.files = f.files
     const indexUrls = [...new Set(f.indexUrls)]
     if (indexUrls.length > 0) request.indexUrls = indexUrls
+    if (Object.keys(f.spans).length > 0) request.spans = f.spans
     requests.push(request)
   }
   let cwd: Cwd = ''
@@ -122,8 +139,8 @@ export const parseCommand = (command: string, agentId: string, at: number): Inst
     const invocations = segment.commands.map((c) => unwrap(c.words))
     const unsafe = segment.unsafe ?? semanticUnsafe(invocations)
     if (unsafe) {
-      const tool = detectTool(segment.raw)
-      if (tool) push({ tool, packages: [], unchecked: [segment.raw], source: 'explicit', files: [], indexUrls: [], dir: '' })
+      const tool = detectTool(segment.raw) ?? (feedsShell(segment.unsafe, invocations) ? 'shell' : undefined)
+      if (tool) push({ tool, packages: [], unchecked: [segment.raw], source: 'explicit', files: [], indexUrls: [], dir: '', spans: {} })
       continue
     }
     for (const [k, inv] of invocations.entries()) {

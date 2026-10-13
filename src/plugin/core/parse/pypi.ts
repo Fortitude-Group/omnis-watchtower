@@ -148,7 +148,7 @@ const uv = (words: Word[], start: number): Fragment | undefined => {
     const sub = scanArgs(words, pre.rest, UV, true)
     const v = sub.positionals[0]?.text
     if (v === 'install') f = withPre(install('uv', words, sub.rest, UV_TOOL, atSpec, false), sub.opts, UV)
-    else if (v === 'run') f = withPre(execute('uv', words, sub.rest, UV_TOOL, atSpec), sub.opts, UV)
+    else if (v === 'run') f = withPre(execute('uv', words, sub.rest, UV_TOOL, atSpec, false), sub.opts, UV)
   }
   return withPre(f, pre.opts, UV)
 }
@@ -165,7 +165,7 @@ const pipx = (words: Word[], start: number): Fragment | undefined => {
   const pre = scanArgs(words, start, PIPX, true)
   const verb = pre.positionals[0]?.text
   if (verb === 'install') return install('pipx', words, pre.rest, PIPX, pep508, false)
-  if (verb === 'run') return execute('pipx', words, pre.rest, PIPX, pep508)
+  if (verb === 'run') return execute('pipx', words, pre.rest, PIPX, pep508, false)
   if (verb === 'inject') {
     const s = scanArgs(words, pre.rest, PIPX, true)
     return s.positionals[0] ? install('pipx', words, s.rest, PIPX, pep508, false) : undefined
@@ -198,7 +198,7 @@ export const parsePypi = (words: Word[]): Fragment | undefined => {
   if (PIP_NAME.test(head)) return pip('pip', words, 1, PIP)
   if (PYTHON.test(head)) return pythonModule(words)
   if (head === 'uv') return uv(words, 1)
-  if (head === 'uvx') return execute('uv', words, 1, UV_TOOL, atSpec)
+  if (head === 'uvx') return execute('uv', words, 1, UV_TOOL, atSpec, false)
   if (head === 'poetry') return poetry(words, 1)
   if (head === 'pipx') return pipx(words, 1)
   return undefined

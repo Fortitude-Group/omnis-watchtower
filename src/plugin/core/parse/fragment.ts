@@ -1,7 +1,7 @@
 // Shared pieces of the install-command parser: option scanning, fragments, paths, ids.
 
-import { key } from '../model'
-import type { InstallRequest, InstallTool, PackageRef } from '../model'
+import { key, normalise } from '../model'
+import type { Ecosystem, InstallRequest, InstallTool, PackageRef } from '../model'
 import type { Word } from './tokenize'
 
 /** What one install command contributes before the request is assembled. */
@@ -15,6 +15,8 @@ export type Fragment = {
   indexUrls: string[]
   /** Directory named by `--prefix`, `--cwd`, `--directory`…, '' when absent. */
   dir: string
+  /** Offsets of the token that named each package, keyed by `key(ref)` (FR-035). */
+  spans: Record<string, [number, number]>
 }
 
 export type SpecResult = { ref: PackageRef } | { unchecked: string }
@@ -46,12 +48,32 @@ export const fragment = (tool: InstallTool): Fragment => ({
   files: [],
   indexUrls: [],
   dir: '',
+  spans: {},
 })
 
 /** Records a parsed spec as a package or an unchecked fragment. */
-export const addSpec = (f: Fragment, r: SpecResult): void => {
-  if ('ref' in r) f.packages.push(r.ref)
-  else f.unchecked.push(r.unchecked)
+export const addSpec = (f: Fragment, r: SpecResult, w?: Word): void => {
+  if (!('ref' in r)) {
+    f.unchecked.push(r.unchecked)
+    return
+  }
+  f.packages.push(r.ref)
+  const k = key(r.ref)
+  if (w && w.start >= 0 && !(k in f.spans) && tokenName(r.ref.ecosystem, w.text) === r.ref.name) f.spans[k] = [w.start, w.end]
+}
+
+// The name a token spells, so a span is only kept when rewriting the token keeps the package
+// (not for `npm init vite` → create-vite, or `alias@npm:real`).
+const tokenName = (ecosystem: Ecosystem, text: string): string => {
+  if (ecosystem === 'pypi') return normalise('pypi', /^\s*([A-Za-z0-9][A-Za-z0-9._-]*)/.exec(text)?.[1] ?? '')
+  const at = text.indexOf('@', text.startsWith('@') ? 1 : 0)
+  return normalise('npm', at < 0 ? text : text.slice(0, at))
+}
+
+// A value split out of `--flag=value` or `-pvalue`; offsets only when the word had no quoting.
+const part = (w: Word, from: number): Word => {
+  const plain = w.start >= 0 && w.end - w.start === w.text.length
+  return { text: w.text.slice(from), dynamic: w.dynamic, start: plain ? w.start + from : -1, end: plain ? w.end : -1 }
 }
 
 /** Splits arguments into options and positionals; with `stopAtPositional` it stops after the first positional. */
@@ -75,13 +97,13 @@ export const scanArgs = (words: Word[], start: number, t: Table, stopAtPositiona
     }
     const eq = s.indexOf('=')
     if (s.startsWith('--') && eq > 0) {
-      opts.push({ flag: s.slice(0, eq), value: { text: s.slice(eq + 1), dynamic: w.dynamic } })
+      opts.push({ flag: s.slice(0, eq), value: part(w, eq + 1) })
     } else if (t.values.has(s)) {
       const value = words[i]
       if (value) i++
       opts.push(value ? { flag: s, value } : { flag: s })
     } else if (s[1] !== '-' && s.length > 2 && t.values.has(s.slice(0, 2))) {
-      opts.push({ flag: s.slice(0, 2), value: { text: s.slice(2), dynamic: w.dynamic } })
+      opts.push({ flag: s.slice(0, 2), value: part(w, 2) })
     } else {
       opts.push({ flag: s })
     }
@@ -104,10 +126,10 @@ export const applyOpts = (f: Fragment, opts: Opt[], t: Table, spec: Spec): boole
     if (role === 'index') f.indexUrls.push(v.text)
     else if (role === 'dir') f.dir = v.text
     else if (role === 'file') f.files.push(v.text)
-    else if (role === 'package') addSpec(f, spec(v.text))
+    else if (role === 'package') addSpec(f, spec(v.text), v)
     else if (role === 'from') {
       from = true
-      addSpec(f, spec(v.text))
+      addSpec(f, spec(v.text), v)
     } else {
       for (const m of v.text.matchAll(/(?:--index-url|--extra-index-url|-i)(?:=|\s+)(\S+)/g)) f.indexUrls.push(m[1]!)
     }
@@ -132,7 +154,7 @@ export const install = (
   const f = fragment(tool)
   const s = scanArgs(words, start, t)
   applyOpts(f, s.opts, t, spec)
-  for (const w of s.positionals) addSpec(f, w.dynamic ? { unchecked: w.text } : spec(w.text))
+  for (const w of s.positionals) addSpec(f, w.dynamic ? { unchecked: w.text } : spec(w.text), w)
   if (f.files.length > 0) f.source = 'requirements-file'
   if (has(f)) return f
   if (!bareIsLockfileDiff || isGlobal(s.opts)) return undefined
@@ -147,13 +169,16 @@ export const execute = (
   start: number,
   t: Table,
   spec: Spec,
+  pinFirst = true,
 ): Fragment | undefined => {
   const f = fragment(tool)
   const s = scanArgs(words, start, t, true)
   const from = applyOpts(f, s.opts, t, spec)
   const shellMode = s.opts.some((o) => o.flag === '--shell-mode' || (o.flag === '-c' && !t.values.has('-c')))
   const first = s.positionals[0]
-  if (first && (shellMode || !from)) addSpec(f, first.dynamic || shellMode ? { unchecked: first.text } : spec(first.text))
+  if (first && (shellMode || !from)) {
+    addSpec(f, first.dynamic || shellMode ? { unchecked: first.text } : spec(first.text), pinFirst ? first : undefined)
+  }
   if (f.files.length > 0) f.source = 'requirements-file'
   return has(f) ? f : undefined
 }

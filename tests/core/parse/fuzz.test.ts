@@ -30,7 +30,7 @@ const TABLE = [
 ]
 
 const ALPHABET = 'abcxyz-_.@/:=<>~!^*?[],;&|$()`\'"\\#\n \t0123456789'
-const TOOLS = new Set(['npm', 'pnpm', 'yarn', 'bun', 'npx', 'pip', 'uv', 'poetry', 'pipx'])
+const TOOLS = new Set(['npm', 'pnpm', 'yarn', 'bun', 'npx', 'pip', 'uv', 'poetry', 'pipx', 'shell'])
 const SOURCES = new Set(['explicit', 'requirements-file', 'lockfile-diff'])
 
 type Rng = { state: number }

@@ -1,7 +1,10 @@
 // POSIX-ish word splitting for install detection. Anything it cannot read safely marks the segment unsafe.
 
-/** One shell word after quote removal. `dynamic` = it holds an expansion or glob, so its value is unknown. */
-export type Word = { text: string; dynamic: boolean }
+/**
+ * One shell word after quote removal. `dynamic` = it holds an expansion or glob, so its value is
+ * unknown. `start`/`end` are its offsets in the original input, quotes included (-1 if synthetic).
+ */
+export type Word = { text: string; dynamic: boolean; start: number; end: number }
 export type Command = { words: Word[]; raw: string }
 /** A chain element (split on `&&`, `||`, `;`, `&`, newline): a pipeline of one or more commands. */
 export type Segment = { raw: string; commands: Command[]; unsafe?: string }
@@ -12,13 +15,14 @@ const SPECIAL_PARAM = /[0-9?@*#$!-]/
 
 /** Splits a shell command into chain segments, each a pipeline of commands made of words. */
 export const tokenize = (input: string): Segment[] => {
-  const src = input.replace(/\\\r?\n/g, '')
+  const src = input
   const segments: Segment[] = []
   const heredocs: string[] = []
   let commands: Command[] = []
   let words: Word[] = []
   let text = ''
   let inWord = false
+  let wordStart = 0
   let quoted = false
   let dynamic = false
   let unsafe: string | undefined
@@ -27,13 +31,17 @@ export const tokenize = (input: string): Segment[] => {
   let cmdStart = 0
   let i = 0
 
+  const begin = () => {
+    if (!inWord) wordStart = i
+    inWord = true
+  }
   const flag = (reason: string) => {
     unsafe ??= reason
   }
   const endWord = () => {
     if (inWord) {
       if (redirect === 'heredoc') heredocs.push(text)
-      else if (!redirect) words.push({ text, dynamic })
+      else if (!redirect) words.push({ text, dynamic, start: wordStart, end: i })
       redirect = undefined
     }
     text = ''
@@ -74,7 +82,7 @@ export const tokenize = (input: string): Segment[] => {
     const c = src[i]!
     const n = src[i + 1]
     if (c === "'") {
-      inWord = true
+      begin()
       quoted = true
       const end = src.indexOf("'", i + 1)
       if (end < 0) {
@@ -88,7 +96,7 @@ export const tokenize = (input: string): Segment[] => {
       continue
     }
     if (c === '"') {
-      inWord = true
+      begin()
       quoted = true
       i++
       let closed = false
@@ -99,7 +107,11 @@ export const tokenize = (input: string): Segment[] => {
           i++
           break
         }
-        if (d === '\\' && i + 1 < src.length && '$`"\\\n'.includes(src[i + 1]!)) {
+        if (d === '\\' && src[i + 1] === '\n') {
+          i += 2
+          continue
+        }
+        if (d === '\\' && i + 1 < src.length && '$`"\\'.includes(src[i + 1]!)) {
           text += src[i + 1]
           i += 2
           continue
@@ -117,7 +129,12 @@ export const tokenize = (input: string): Segment[] => {
       continue
     }
     if (c === '\\') {
-      inWord = true
+      const continuation = n === '\n' ? 2 : n === '\r' && src[i + 2] === '\n' ? 3 : 0
+      if (continuation > 0) {
+        i += continuation
+        continue
+      }
+      begin()
       quoted = true
       if (n !== undefined) text += n
       i += 2
@@ -127,14 +144,14 @@ export const tokenize = (input: string): Segment[] => {
       const e = n ?? ''
       if (e === '(') flag('command substitution')
       else if (e === '{' || e === "'" || NAME_START.test(e) || SPECIAL_PARAM.test(e)) dynamic = true
-      inWord = true
+      begin()
       text += c
       i++
       continue
     }
     if (c === '`') {
       flag('command substitution')
-      inWord = true
+      begin()
       text += c
       i++
       continue
@@ -227,7 +244,7 @@ export const tokenize = (input: string): Segment[] => {
       continue
     }
     if (c === '*' || c === '?') dynamic = true
-    inWord = true
+    begin()
     text += c
     i++
   }
