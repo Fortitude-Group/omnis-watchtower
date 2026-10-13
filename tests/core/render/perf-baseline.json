@@ -1,0 +1,7 @@
+{
+  "frame120x36MedianMs": 0.3477,
+  "calibrationMedianMs": 0.2966,
+  "ratio": 1.1725,
+  "frames": 200,
+  "node": "v24.19.0"
+}
