@@ -7,7 +7,8 @@ contract (Principle II).
 
 | Command | Effect | Origin rule |
 |---|---|---|
-| `/watchtower` | Open (or focus) the mission-control pane | any |
+| `/watchtower` | Open the mission-control pane, or close it if it's showing | any |
+| `/watchtower close` | Close the pane (Esc at an empty prompt also closes it: opened with `closeOnEscape`) | any |
 | `/watchtower theme <radar\|cracktro>` | Switch theme, state kept | any |
 | `/watchtower legend` | Explain every figure on screen (Principle XII) | any |
 | `/watchtower demo` | Replay the scripted attack; no network, no installs | any |

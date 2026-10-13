@@ -51,13 +51,17 @@ Needs Claude Code **2.1.296 or later**.
 ```
 
 That's it. The tripwire is on from the next session. Open mission control with `/watchtower`,
-or let it dock itself when your terminal is at least 144 columns wide.
+or let it dock itself when your terminal is at least 144 columns wide. Close it with Esc at an
+empty prompt or `/watchtower` again. The pane's close mark only takes clicks in Claude Code's
+fullscreen layout; elsewhere (the main screen, tmux, some attach views) your terminal keeps the
+mouse and the mark is just text.
 
 ## Commands
 
 | Command | What it does |
 |---|---|
-| `/watchtower` | Open mission control |
+| `/watchtower` | Open mission control (run it again to close it) |
+| `/watchtower close` | Close mission control. Esc at an empty prompt does the same |
 | `/watchtower theme radar\|cracktro` | Switch the look (remembered) |
 | `/watchtower legend` | Explain every figure on screen: what it is, why it matters, what to do |
 | `/watchtower demo` | Replay a scripted attack, offline, no real installs |

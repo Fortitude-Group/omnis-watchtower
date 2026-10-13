@@ -16,11 +16,14 @@ export type Snapshot = {
   permanentOverrides: Record<string, Override>
   /** Overrides asked for from outside the person's prompt, waiting for a pane confirmation. */
   pendingOverrides: Record<string, Override>
+  /** True while the Watchtower pane is open and shown, so bare /watchtower can toggle it. */
+  paneShown: boolean
   ctx: Ctx
 }
 
 export type Action =
   | { type: 'openPane' }
+  | { type: 'closePane' }
   | { type: 'setTheme'; theme: WatchtowerTheme }
   | { type: 'putOverride'; override: Override }
   | { type: 'removeOverride'; key: string }
@@ -40,12 +43,13 @@ export const addSubcommand = (name: string, handler: Handler): void => {
   handlers.set(name, handler)
 }
 
-export const KNOWN = ['', 'theme', 'legend', 'demo', 'status', 'allow', 'block', 'overrides', 'recheck']
+export const KNOWN = ['', 'close', 'theme', 'legend', 'demo', 'status', 'allow', 'block', 'overrides', 'recheck']
 
 export const helpText = (): string =>
   [
     'Omnis Watchtower commands:',
-    '  /watchtower                         open mission control',
+    '  /watchtower                         open mission control (again to close it)',
+    '  /watchtower close                   close mission control (or press Esc at an empty prompt)',
     '  /watchtower theme <radar|cracktro>  switch theme',
     '  /watchtower legend                  explain every figure on screen',
     '  /watchtower demo                    replay the scripted attack (offline)',

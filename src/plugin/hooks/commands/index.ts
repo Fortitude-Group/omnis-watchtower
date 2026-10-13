@@ -46,6 +46,8 @@ export const install = (on: On, ctx: Ctx): void => {
     const stored = await $.store.get(PERMANENT_OVERRIDES_KEY)
     const snap: Snapshot = {
       origin: e.origin?.kind ?? 'unclassified',
+      // Not listed (a test, or before the first open) counts as closed
+      paneShown: (await $.ui.panes().catch(() => [])).some(p => p.id === PANE_ID && p.isShown),
       now: await $.clock.now(),
       theme: await read($, theme),
       events: await read($, events),
@@ -60,7 +62,10 @@ export const install = (on: On, ctx: Ctx): void => {
     for (const action of reply.actions ?? []) {
       switch (action.type) {
         case 'openPane':
-          await $.ui.open({ id: PANE_ID, title: 'Omnis Watchtower' })
+          await $.ui.open({ id: PANE_ID, title: 'Omnis Watchtower', closeOnEscape: true })
+          break
+        case 'closePane':
+          await $.ui.close({ id: PANE_ID })
           break
         case 'setTheme':
           await update($, theme, () => action.theme)
@@ -105,7 +110,7 @@ export const install = (on: On, ctx: Ctx): void => {
         }
         case 'startDemo':
           await update($, demo, () => true)
-          await $.ui.open({ id: PANE_ID, title: 'Omnis Watchtower' })
+          await $.ui.open({ id: PANE_ID, title: 'Omnis Watchtower', closeOnEscape: true })
           break
       }
     }

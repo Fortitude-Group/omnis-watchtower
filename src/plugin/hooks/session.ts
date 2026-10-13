@@ -23,7 +23,7 @@ export const install = (on: On, ctx: Ctx): void => {
     // Unasked, the engine places a pane only from 144 columns, which is exactly our floor. A pane it
     // would leave waiting is closed, so it never pops up later when the terminal widens.
     if (ctx.options.autoOpen && e.isInteractive && e.surface === 'terminal') {
-      const opened = await $.ui.open({ id: PANE_ID, title: 'Omnis Watchtower' })
+      const opened = await $.ui.open({ id: PANE_ID, title: 'Omnis Watchtower', closeOnEscape: true })
       if (!opened.isPlaced) await $.ui.close({ id: PANE_ID })
     }
     return started
