@@ -77,11 +77,6 @@ export const PERMANENT_OVERRIDES_KEY = 'wt:overrides:permanent'
 export const VERDICT_CACHE_PREFIX = 'wt:verdict:'
 
 export const install = (on: On, ctx: Ctx): void => {
-  on('session.start', async ($, e, next) => {
-    await $.command.register({ name: 'watchtower', description: 'Omnis Watchtower: mission control and supply-chain tripwire' })
-    return next(e)
-  })
-
   on('command.run', { command: 'watchtower' }, async ($, e) => {
     const stored = await $.store.get(PERMANENT_OVERRIDES_KEY)
     const snap: Snapshot = {

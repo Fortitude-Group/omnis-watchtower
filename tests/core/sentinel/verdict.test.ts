@@ -55,3 +55,14 @@ describe('parseVerdict', () => {
     expect(parseVerdict(json({ ...good, note: 1 }))).toEqual({ ok: false, reason: 'unexpected key: note' })
   })
 })
+
+describe("the echoed investigation id", () => {
+  it('is accepted and returned', () => {
+    const r = parseVerdict(JSON.stringify({ investigation: 'wt-1a2b', verdict: 'allow', confidence: 1, evidence: ['ok'] }))
+    expect(r).toMatchObject({ ok: true, investigation: 'wt-1a2b' })
+  })
+  it('must be a short string', () => {
+    expect(parseVerdict(JSON.stringify({ investigation: 'x'.repeat(65), verdict: 'allow', confidence: 1, evidence: ['ok'] })).ok).toBe(false)
+    expect(parseVerdict(JSON.stringify({ investigation: 7, verdict: 'allow', confidence: 1, evidence: ['ok'] })).ok).toBe(false)
+  })
+})

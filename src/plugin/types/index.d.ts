@@ -25,6 +25,8 @@ export type Investigation = {
   key: string
   ref: PackageRef
   agentId?: string
+  /** Correlation id the Sentinel echoes in its verdict, for when the host reports no agent id. */
+  token?: string
   status: 'queued' | 'running' | 'concluded' | 'failed' | 'timedOut'
   attempts: number
   startedAt: number

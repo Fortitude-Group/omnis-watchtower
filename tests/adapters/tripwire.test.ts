@@ -231,3 +231,14 @@ describe('cooldown pins (FR-035)', () => {
     expect(out.toInvestigate.map(c => c.ref.name)).toEqual(['zod'])
   })
 })
+
+test('a Sentinel still running past its deadline counts as timed out on retry (FR-017)', async () => {
+  const ref = { ecosystem: 'npm' as const, name: 'left-padx' }
+  const { io } = setup({
+    investigations: { 'npm:left-padx@latest': { key: 'npm:left-padx@latest', ref, status: 'running', attempts: 1, startedAt: NOW - 200_000, deadline: NOW - 20_000, reasons: ['First published 2 days ago'], hasHardSignal: false } },
+  })
+  const out = await evaluate(io, 'npm i left-padx', 'main', opts)
+  if (out.kind === 'not-install') throw new Error('expected a decision')
+  expect(out.kind).toBe('deny')
+  expect(out.text).toContain('investigation timed out (no verdict within 180 s)')
+})

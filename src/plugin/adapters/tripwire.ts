@@ -89,8 +89,11 @@ const investigationOutcome = (ref: PackageRef, inv: Investigation, now: number):
   return undefined
 }
 
-const textFor = (check: PackageCheck, investigations: Record<string, Investigation>): string => {
-  const inv = investigations[key(check.ref)]
+const textFor = (check: PackageCheck, investigations: Record<string, Investigation>, now: number): string => {
+  const stored = investigations[key(check.ref)]
+  const inv = stored && (stored.status === 'queued' || stored.status === 'running') && now > stored.deadline
+    ? { ...stored, status: 'timedOut' as const, failure: stored.failure ?? `no verdict within ${Math.round((stored.deadline - stored.startedAt) / 1000)} s` }
+    : stored
   if (inv && (inv.status === 'failed' || inv.status === 'timedOut')) {
     return investigationFailedText(check.ref, inv.status === 'failed' ? 'failed' : 'timed out', inv.failure ?? 'no verdict')
   }
@@ -142,7 +145,11 @@ export const evaluate = async (
       settled.set(k, decide({ ref, signals: [], now, override, mode: options.mode }))
       continue
     }
-    const inv = investigations[k]
+    const stored = investigations[k]
+    // A Sentinel past its deadline has timed out, whether or not its turn ever ended (FR-017)
+    const inv = stored && (stored.status === 'queued' || stored.status === 'running') && now > stored.deadline
+      ? { ...stored, status: 'timedOut' as const, failure: stored.failure ?? `no verdict within ${Math.round((stored.deadline - stored.startedAt) / 1000)} s` }
+      : stored
     if (inv) {
       const done = investigationOutcome(ref, inv, now)
       if (done) { settled.set(k, done); continue }
@@ -198,7 +205,7 @@ export const evaluate = async (
     requests,
     checks,
     toInvestigate: options.mode === 'warn-only' ? [] : toInvestigate,
-    text: final.allow ? [...pinNotes, ...warnings].join('\n\n') : commandText(final.blocking, c => textFor(c, investigations)),
+    text: final.allow ? [...pinNotes, ...warnings].join('\n\n') : commandText(final.blocking, c => textFor(c, investigations, now)),
     ...(rewrite && rewrite !== command ? { rewrite } : {}),
     unchecked,
   }

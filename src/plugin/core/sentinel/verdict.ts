@@ -2,9 +2,11 @@
 
 import type { SentinelVerdict } from '../model'
 
-export type ParsedVerdict = { ok: true; verdict: SentinelVerdict } | { ok: false; reason: string }
+export type ParsedVerdict = { ok: true; verdict: SentinelVerdict; investigation?: string } | { ok: false; reason: string }
 
 const KEYS = ['verdict', 'confidence', 'evidence']
+/** Optional: the investigation id from the task prompt, echoed back so a verdict can be matched without an agent id. */
+const OPTIONAL = ['investigation']
 const MAX_ITEMS = 8
 const MAX_LEN = 200
 
@@ -39,7 +41,7 @@ const validate = (value: unknown): ParsedVerdict => {
     return { ok: false, reason: 'verdict is not a JSON object' }
   }
   const o = value as Record<string, unknown>
-  const extra = Object.keys(o).filter((k) => !KEYS.includes(k))
+  const extra = Object.keys(o).filter((k) => !KEYS.includes(k) && !OPTIONAL.includes(k))
   if (extra.length > 0) return { ok: false, reason: `unexpected key: ${extra[0]}` }
   for (const k of KEYS) if (!(k in o)) return { ok: false, reason: `missing key: ${k}` }
   if (o.verdict !== 'allow' && o.verdict !== 'block') return { ok: false, reason: 'verdict must be "allow" or "block"' }
@@ -55,7 +57,11 @@ const validate = (value: unknown): ParsedVerdict => {
     if (typeof line !== 'string' || line.length < 1) return { ok: false, reason: 'evidence items must be non-empty strings' }
     if (line.length > MAX_LEN) return { ok: false, reason: `evidence item longer than ${MAX_LEN} characters` }
   }
-  return { ok: true, verdict: { verdict: o.verdict, confidence: c, evidence: e as string[] } }
+  const inv = o.investigation
+  if (inv !== undefined && (typeof inv !== 'string' || inv.length < 1 || inv.length > 64)) {
+    return { ok: false, reason: 'investigation must be a short string' }
+  }
+  return { ok: true, verdict: { verdict: o.verdict, confidence: c, evidence: e as string[] }, ...(inv ? { investigation: inv } : {}) }
 }
 
 export const parseVerdict = (answer: string): ParsedVerdict => {

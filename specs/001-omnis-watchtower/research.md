@@ -241,6 +241,26 @@ PyPI packages against the live registries. Results are in `docs/validation/benig
 - **Third run: 998 pass (59 pinned), 0 refused, 2 held** (databricks-sdk and nbconvert: each has a
   fresh release *and* no linked repository, two signals, so the hold is the cautious answer).
 
+## R19. Sentinel wiring against the running engine (T045/T047), 2026-10-13
+
+- **Types vs runtime drift.** This session's API declarations were written by Claude Code 2.1.288,
+  but `claude plugin test` runs the installed 2.1.296. The test hook for `agent.spawn` receives the
+  Agent tool's own input (`subagent_type`, `run_in_background`), not the typed `subagentType`.
+- **`agentId` comes only from the host.** A hook-answered spawn reaches the caller as
+  `{"model":"inherit"}` with no `agentId`, as documented ("Set by core; a hook that answers
+  without next started none"). Matching verdicts by `agentId` alone would be untestable, and
+  fragile if the host ever omits it.
+- **Decision:** every investigation carries a correlation `token` in the task prompt, which the
+  Sentinel echoes as `"investigation"` in its verdict JSON (schema updated). Verdicts match by
+  `agentId` when present, otherwise by token (`core/sentinel/turn.ts`). Paths that need
+  `agentId` (malformed-output retry, errored turns) are unit-tested in vitest. The engine test
+  covers the token path end to end.
+- **Hook order.** "A plugin's registrations nest in order, first outermost": the Sentinel's
+  `tool.call` hook is registered before the gate's so it can spawn whatever the gate queued.
+  `session.start` may be registered only once without a matcher, so `hooks/session.ts` owns it.
+- **Timeouts** need no timer: a running investigation past its deadline is treated as timed out
+  on the next retry (`adapters/tripwire.ts`).
+
 ## R16. Tracker (constitution Principle VII)
 
 - **Decision**: the project of record is **GitHub Issues** on `Fortitude-Group/omnis-watchtower`

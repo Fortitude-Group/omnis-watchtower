@@ -7,6 +7,7 @@
   "additionalProperties": false,
   "required": ["verdict", "confidence", "evidence"],
   "properties": {
+    "investigation": { "type": "string", "minLength": 1, "maxLength": 64, "description": "The investigation id from the task prompt, echoed back so the verdict can be matched to its package even when the host reports no agent id." },
     "verdict": { "enum": ["allow", "block"] },
     "confidence": { "type": "number", "minimum": 0, "maximum": 1 },
     "evidence": {

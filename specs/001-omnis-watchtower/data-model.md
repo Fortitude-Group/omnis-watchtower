@@ -103,7 +103,8 @@ package); otherwise allow.
 ```
 Investigation {
   key: string             // PackageRef key
-  agentId?: string        // the Sentinel's agentId once spawned
+  agentId?: string        // the Sentinel's agentId once spawned (set by the host; absent when a hook answered the spawn)
+  token?: string          // correlation id in the task prompt, echoed in the verdict JSON (research R19)
   status: 'queued' | 'running' | 'concluded' | 'failed' | 'timedOut'
   attempts: number        // malformed-output retry: max 2
   startedAt: number

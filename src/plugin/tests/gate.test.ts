@@ -1,40 +1,7 @@
-import { expect, mock, test } from 'claude-code/testing'
-import type { On } from 'claude-code'
+import { expect, test } from 'claude-code/testing'
 
-import { recorded } from './fixtures/http'
+import { world } from './helpers/world'
 
-const NOW = Date.parse('2026-10-13T00:00:00Z')
-
-// The engine beneath the plugin: recorded HTTP, an empty project, no env, memory store and clock
-const world = (on: On, files: Record<string, string> = {}) => {
-  mock.store(on)
-  mock.clock(on, { now: NOW })
-  const fetched: string[] = []
-  on('http.fetch', (_$, e) => {
-    const url = (e as { url: string }).url
-    const init = (e as { init?: { method?: string; body?: string } }).init
-    const k = init?.method === 'POST' ? `POST ${url} ${init.body ?? ''}` : `GET ${url}`
-    fetched.push(k)
-    const hit = recorded[k] ?? (url.includes('/downloads/point/last-week/') && url.includes(',')
-      ? { status: 200, body: Object.fromEntries(url.split('/').pop()!.split(',').map(n => [n, recorded[`GET https://api.npmjs.org/downloads/point/last-week/${n}`]?.body ?? null])) }
-      : undefined)
-    if (!hit) throw new Error(`offline: ${k}`)
-    return { value: { status: hit.status, ok: hit.status < 300, headers: {}, text: JSON.stringify(hit.body) } }
-  })
-  on('fs.read', (_$, e) => {
-    // The engine resolves relative paths against the session's folder (the plugin folder here)
-    const path = String((e as { path: string }).path).replace(/\\/g, '/').replace(/^.*\/src\/plugin\//, '').replace(/^\.\//, '')
-    const text = files[path]
-    return text === undefined ? { deny: `ENOENT: ${path}` } : { value: text }
-  })
-  on('env.get', () => ({ value: undefined }))
-  const ran: string[] = []
-  on('tool.call', (_$, e) => {
-    ran.push(String((e as { command?: string }).command))
-    return { result: { stdout: 'ok', stderr: '', interrupted: false } }
-  })
-  return { fetched, ran }
-}
 
 test('an invented package name is refused before it runs (US1-1)', async ($, on) => {
   const w = world(on)
