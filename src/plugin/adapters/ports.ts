@@ -57,3 +57,12 @@ export type NowPort = () => Promise<number>
 export type HttpIo = { fetch: HttpPort, after: TimerPort }
 
 export type CacheIo = { store: StorePort, now: NowPort }
+
+// Both halves an adapter that fetches and caches needs; the keys do not overlap
+export type SourceIo = HttpIo & CacheIo
+
+// Resolves the file's text, or undefined when it does not exist or cannot be read
+export type ReadFilePort = (path: string) => Promise<string | undefined>
+
+// `$.env`-style lookup; undefined when the variable is unset
+export type EnvPort = (name: string) => Promise<string | undefined> | string | undefined
