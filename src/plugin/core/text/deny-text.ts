@@ -1,12 +1,12 @@
 // The exact text Claude receives (contracts/user-surface.md). Agents and tests rely on these prefixes.
 
 import type { PackageCheck, PackageRef } from '../model'
+import { contributing } from '../score/evidence'
 
 export const label = (ref: PackageRef): string =>
   `${ref.ecosystem}:${ref.name}${ref.version ? `@${ref.version}` : ''}`
 
-const evidenceLines = (c: PackageCheck): string[] =>
-  c.signals.filter(s => s.state === 'present' || (s.state === 'unknown' && s.weight === 'hard')).map(s => `- ${s.evidence}`)
+const evidenceLines = (c: PackageCheck): string[] => contributing(c.signals).map(s => `- ${s.evidence}`)
 
 export const refusedText = (c: PackageCheck): string =>
   [

@@ -83,3 +83,17 @@ test('multi-package commands list refused first, then held, and omit passes', ()
   expect(text).not.toContain('npm:ok')
   expect(text.split('\n\n')).toHaveLength(2)
 })
+
+test('a refusal for an invented name shows the "does not exist" evidence', () => {
+  const c = check({
+    ref: { ecosystem: 'npm', name: 'react-dom-utilz' },
+    tier: 'refuse',
+    signals: [{ kind: 'exists', state: 'absent', weight: 'hard', evidence: 'No package called react-dom-utilz exists on npm; the name was probably invented' }],
+  })
+  expect(refusedText(c)).toContain('- No package called react-dom-utilz exists on npm')
+})
+
+test('an existing package does not list "exists" as evidence', () => {
+  const c = check({ tier: 'hold', signals: [{ kind: 'exists', state: 'present', weight: 'hard', evidence: 'Package exists' }] })
+  expect(heldText(c)).not.toContain('Package exists')
+})
