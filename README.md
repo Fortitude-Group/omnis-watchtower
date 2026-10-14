@@ -106,7 +106,9 @@ in [src/plugin/adapters/facts.ts](src/plugin/adapters/facts.ts).
 
 - **Not a sandbox.** It decides whether an install should run. It doesn't run installs in
   isolation, and it doesn't analyse arbitrary shell. `curl … | sh` is allowed and flagged on the
-  map as unchecked.
+  map as unchecked. If you want to watch what an install actually does, that's our sister project
+  [PoisonBox](https://poisonbox.fortitude-omnis.group/): it runs the install script in a
+  throwaway microVM and records every file, process and connection it touches (npm only, for now).
 - **npm and PyPI only** for now. pnpm, yarn, bun, npx, pip, uv, poetry and pipx are all read,
   along with requirements files and lockfile diffs. Cargo, Go, gems and NuGet are not.
 - **Terminal only** for now. The desktop app shows a short note instead of the map. The renderer
