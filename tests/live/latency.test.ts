@@ -67,7 +67,7 @@ test.skipIf(!LIVE)('decisions are fast enough for an agent not to notice (SC-003
     row('First seen', first),
     row('Cached', cached),
     '',
-    'The PyPI names are the 100-name placeholder list (T037). Timings include the private-registry config lookup, which reads no files here.',
+    'The PyPI names are the top of popular-pypi.ts (hugovk top-pypi-packages, CC BY 4.0). Timings include the private-registry config lookup, which reads no files here.',
     '',
   ].join('\n'))
   expect(pct(first, 95)).toBeLessThan(5_000)

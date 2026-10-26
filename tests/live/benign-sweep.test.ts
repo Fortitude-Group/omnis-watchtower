@@ -31,7 +31,7 @@ const nodeIo = (): SourceIo => {
 }
 
 const topPypi = async (): Promise<string[]> => {
-  const res = await fetch('https://hugovk.github.io/top-pypi-packages/top-pypi-packages.min.json')
+  const res = await fetch('https://hugovk.dev/top-pypi-packages/top-pypi-packages.min.json')
   const json = (await res.json()) as { rows: { project: string }[] }
   return json.rows.slice(0, TOP).map(r => r.project.toLowerCase().replace(/[-_.]+/g, '-'))
 }

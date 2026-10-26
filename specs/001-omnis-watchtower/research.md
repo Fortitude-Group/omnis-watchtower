@@ -140,11 +140,14 @@ All verified live on 2026-10-13 (HTTP status, latency from this machine):
     downloads endpoint.
   - **PyPI**: `hugovk/top-pypi-packages` monthly dump (verified reachable; last update
     2026-10-01).
-- **Open licence check**: the GitHub API reports **no licence** for `hugovk/top-pypi-packages`.
-  A list of package names and counts is largely factual, but constitution dependency discipline
-  requires a licence review before shipping. Task: confirm the terms with the maintainer, or
-  rank PyPI names ourselves from the public PyPI BigQuery dataset. Until then the list is
-  committed only as a build input, not shipped.
+- **Licence check (resolved 2026-10-26)**: the GitHub API reports no licence for
+  `hugovk/top-pypi-packages`, so we asked in
+  [hugovk/top-pypi-packages#78](https://github.com/hugovk/top-pypi-packages/issues/78). The
+  maintainer confirmed the data is **CC BY 4.0**. We ship the top 5,000 project names (no
+  counts, PEP 503-normalised), with attribution and the list of changes in the generated file's
+  header and a Credits section in the README. The dump moved to
+  `https://hugovk.dev/top-pypi-packages/top-pypi-packages.min.json` (the old github.io URL
+  redirects).
 
 ## R11. Mod runtime constraints
 

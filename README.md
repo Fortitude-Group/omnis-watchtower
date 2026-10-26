@@ -131,6 +131,22 @@ WT_LIVE=1 npx vitest run tests/live          # the live sweep and latency checks
 
 Specs, plan and research live in `specs/001-omnis-watchtower/`.
 
+## Credits
+
+The typosquat check needs to know which names are worth squatting, and that comes from two lists.
+
+- **PyPI:** the top 5,000 names from [top-pypi-packages](https://github.com/hugovk/top-pypi-packages)
+  by Hugo van Kemenade, a monthly dump of the most-downloaded packages on PyPI
+  ([DOI](https://zenodo.org/badge/latestdoi/116806538)). It's licensed
+  [CC BY 4.0](https://creativecommons.org/licenses/by/4.0/) (Hugo confirmed the terms in
+  [#78](https://github.com/hugovk/top-pypi-packages/issues/78), thanks Hugo!). We keep the project
+  names only, normalised, and drop the download counts.
+- **npm:** [npm-high-impact](https://github.com/wooorm/npm-high-impact) by Titus Wormer (MIT),
+  re-ranked by weekly downloads.
+
+Both are baked in at release time by `scripts/build-popular-lists.mjs`. Nothing is fetched from
+either at runtime.
+
 ---
 
 Built by [Fortitude Omnis Group](https://fortitude-omnis.group).

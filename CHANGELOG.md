@@ -1,5 +1,15 @@
 # Changelog
 
+## Unreleased
+
+### Tripwire
+
+- PyPI typosquat detection now checks against the top 5,000 PyPI names instead of a stopgap list
+  of 100. The list comes from Hugo van Kemenade's top-pypi-packages (CC BY 4.0, credited in the
+  README), now that the licence is confirmed. npm already used 5,000.
+- `scripts/build-popular-lists.mjs` builds the PyPI list too, and takes `npm` or `pypi` to build
+  just one.
+
 ## 0.1.0 – 2026-10-13
 
 First release.
