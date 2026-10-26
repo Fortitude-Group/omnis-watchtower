@@ -9,6 +9,9 @@
   README), now that the licence is confirmed. npm already used 5,000.
 - `scripts/build-popular-lists.mjs` builds the PyPI list too, and takes `npm` or `pypi` to build
   just one.
+- A rate-limited npm download count (HTTP 429) is now remembered for a minute instead of being
+  asked for again on every check. While npm was throttling us, repeat checks took over half a
+  second. They're back to about a millisecond.
 
 ## 0.1.0 – 2026-10-13
 

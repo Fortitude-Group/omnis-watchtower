@@ -21,6 +21,11 @@ export const parseNpmDownloads = (json: unknown): Fact<number> => isRecord(json)
 export const parsePypiStats = (json: unknown): Fact<number> =>
   isRecord(json) && isRecord(json.data) ? count(json.data.last_week) : 'unknown'
 
+// How long a failed lookup is remembered: a 404 for the not-found TTL, a 429 briefly, and
+// anything else not at all, so a dropped connection is retried on the next check
+const failureTtl = (status: number | undefined): number | undefined =>
+  status === 404 ? TTL.notFound : status === 429 ? TTL.rateLimited : undefined
+
 // A 404 means the API has no record of the name (a brand-new package reads 0, not 404), so
 // the count is unknown. The 404 is still cached for the not-found TTL.
 const cached = async (io: SourceIo, ns: string, id: string, url: string, parse: (json: unknown) => Fact<number>): Promise<Fact<number>> => {
@@ -28,9 +33,8 @@ const cached = async (io: SourceIo, ns: string, id: string, url: string, parse: 
   if (hit !== undefined) return hit
   const res = await fetchJson(io, url)
   const value = res.ok ? parse(res.json) : 'unknown'
-  if (res.ok ? value !== 'unknown' : res.status === 404) {
-    await cacheSet(io, ns, id, value, res.ok ? TTL.metadata : TTL.notFound).catch(() => {})
-  }
+  const ttl = res.ok ? (value !== 'unknown' ? TTL.metadata : undefined) : failureTtl(res.status)
+  if (ttl !== undefined) await cacheSet(io, ns, id, value, ttl).catch(() => {})
   return value
 }
 
@@ -64,6 +68,7 @@ export const fetchNpmDownloadsBulk = async (io: SourceIo, names: string[]): Prom
       for (const name of chunk) {
         if (!body) {
           out[name] = 'unknown'
+          if (!res.ok && res.status === 429) await cacheSet(io, 'dl-npm', name, 'unknown', TTL.rateLimited).catch(() => {})
           continue
         }
         // null marks a name the API does not know, the bulk form's 404

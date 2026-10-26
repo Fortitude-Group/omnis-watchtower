@@ -177,6 +177,35 @@ describe('downloads', () => {
     expect(calls).toHaveLength(2)
   })
 
+  it('remembers a 429 for a minute, so a repeat check does not ask again straight away', async () => {
+    const limited = { status: 429, body: {} }
+    const { io, calls } = fixtureIo({
+      'GET https://api.npmjs.org/downloads/point/last-week/busy': limited,
+      'GET https://api.npmjs.org/downloads/point/last-week/a,b': limited,
+    })
+    expect(await fetchNpmDownloads(io, 'busy')).toBe('unknown')
+    expect(await fetchNpmDownloadsBulk(io, ['a', 'b'])).toEqual({ a: 'unknown', b: 'unknown' })
+    const afterFirst = calls.length
+    expect(await fetchNpmDownloads(io, 'busy')).toBe('unknown')
+    expect(await fetchNpmDownloadsBulk(io, ['a', 'b'])).toEqual({ a: 'unknown', b: 'unknown' })
+    expect(calls).toHaveLength(afterFirst)
+
+    let now = await io.now()
+    io.now = async () => now
+    now += TTL.rateLimited + 1
+    await fetchNpmDownloads(io, 'busy')
+    expect(calls.length).toBeGreaterThan(afterFirst)
+  })
+
+  it('does not remember a dropped connection', async () => {
+    const { io, calls } = fixtureIo()
+    io.fetch = async (url) => { calls.push(url); throw new Error('offline') }
+    await fetchNpmDownloads(io, 'flaky')
+    const afterFirst = calls.length
+    await fetchNpmDownloads(io, 'flaky')
+    expect(calls.length).toBeGreaterThan(afterFirst)
+  })
+
   it('marks a whole chunk unknown when the bulk request fails', async () => {
     const { io } = fixtureIo()
     io.fetch = async () => { throw new Error('offline') }

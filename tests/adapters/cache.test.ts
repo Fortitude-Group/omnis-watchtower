@@ -20,7 +20,7 @@ const setup = (entries: Record<string, unknown> = {}) => {
 describe('cache', () => {
   it('has the TTLs of the persistence map', () => {
     const hour = 3_600_000
-    expect(TTL).toEqual({ metadata: 6 * hour, osv: hour, notFound: 6 * hour, verdict: 24 * hour })
+    expect(TTL).toEqual({ metadata: 6 * hour, osv: hour, notFound: 6 * hour, verdict: 24 * hour, rateLimited: 60_000 })
   })
 
   it('reads back a value set, under a wt: namespaced key', async () => {

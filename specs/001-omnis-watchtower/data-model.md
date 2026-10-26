@@ -182,7 +182,7 @@ recorded event log replays identically (FR-027, SC-008).
 
 | Data | Where | Lifetime |
 |---|---|---|
-| Fetched registry/OSV/deps.dev responses | `$.store` | 6 h metadata, 1 h OSV, 404s 6 h |
+| Fetched registry/OSV/deps.dev responses | `$.store` | 6 h metadata, 1 h OSV, 404s 6 h, download-count 429s 1 min |
 | PackageCheck verdicts | `$.store` | 24 h |
 | Permanent overrides | `$.store` | until removed |
 | Session overrides, investigations, Scene, theme selection | `$.state` | session |

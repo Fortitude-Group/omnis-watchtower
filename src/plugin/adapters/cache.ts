@@ -7,6 +7,9 @@ export const TTL = {
   osv: 1 * HOUR,
   notFound: 6 * HOUR,
   verdict: 24 * HOUR,
+  // A 429 is remembered briefly so a rate-limited source isn't asked again straight away,
+  // which only earns another 429 and adds latency to every repeat check
+  rateLimited: 60 * 1000,
 } as const
 
 type Entry = { value: unknown, expiresAt: number }
